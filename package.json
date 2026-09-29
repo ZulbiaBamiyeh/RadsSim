@@ -1,0 +1,31 @@
+{
+  "name": "radssim",
+  "version": "1.0.0",
+  "description": "On-call radiologist chaos sandbox (three.js)",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "build:single": "vite build --mode single",
+    "preview": "vite preview"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ZulbiaBamiyeh/RadsSim.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/ZulbiaBamiyeh/RadsSim/issues"
+  },
+  "homepage": "https://github.com/ZulbiaBamiyeh/RadsSim#readme",
+  "dependencies": {
+    "three": "^0.186.1"
+  },
+  "devDependencies": {
+    "vite": "^8.3.1",
+    "vite-plugin-singlefile": "^2.3.3"
+  },
+  "type": "module",
+  "private": true
+}

@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>RadsSim Night Shift</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo+Narrow:wght@400;600;700&family=Archivo+Black&family=Caveat:wght@500;700&family=IBM+Plex+Mono:wght@400;600&display=swap">
+</head>
+<body>
+<canvas id="game"></canvas>
+
+<!-- ============ HUD ============ -->
+<div id="hud" hidden>
+  <div id="clock-wrap"><span class="lcd-label">ON CALL</span><span id="clock">22:00</span></div>
+  <div id="worklist" data-level="0">
+    <div class="wl-top"><span id="wl-count">0</span><span class="wl-label">unreported</span></div>
+    <div id="wl-oldest"></div>
+    <div id="wl-status"></div>
+  </div>
+  <div id="wanted" hidden></div>
+  <div id="crosshair"></div>
+  <div id="prompt"></div>
+  <div id="held-wrap"><div id="held"></div><div id="held-hint"></div></div>
+  <div id="toasts"></div>
+  <div id="help-tip">H — controls</div>
+</div>
+<div id="alarm-vignette" hidden></div>
+<div id="fire-overlay" hidden></div>
+<div id="soot" hidden></div>
+
+<div id="help" hidden>
+  <h2>Controls</h2>
+  <dl>
+    <dt>WASD · mouse</dt><dd>Walk and look (Shift sprints, Space jumps)</dd>
+    <dt>E</dt><dd>Interact: sit at PACS, take a request form, push a bed, use the microwave…</dd>
+    <dt>Left click</dt><dd>Pick up / throw · shove people · launch a bed you're pushing</dd>
+    <dt>Right click</dt><dd>Use held item: spray extinguisher (look down to fly), flick lighter, eat, drink</dd>
+    <dt>Q</dt><dd>Drop</dd>
+    <dt>At PACS</dt><dd>Wheel or drag to scroll slices · right-drag for window/level · 1–4 presets · M to mark the lesion · Esc to stand up</dd>
+    <dt>Cheats</dt><dd>L dumps 5 requests on the list · T skips an hour</dd>
+  </dl>
+  <p>Press H to close.</p>
+</div>
+
+<div id="paused" hidden><div class="paused-card"><b>Paused</b><span>Click to keep ignoring the worklist</span></div></div>
+<div id="fade" hidden><p id="fade-text"></p></div>
+
+<!-- ============ START ============ -->
+<div id="start">
+  <div class="start-card">
+    <div class="start-left">
+      <div class="kicker">RadsSim General Hospital · Emergency Department</div>
+      <h1>Night<br>Shift</h1>
+      <p class="lede">You are the on-call radiologist. It is 22:00. The worklist is already growing. You could report the scans. You could also microwave a foil tray and see what happens.</p>
+      <button id="start-btn">Start shift</button>
+      <p class="fine">Best with a mouse and keyboard on a desktop browser. Everyone here is fictional; no real patients were harmed.</p>
+    </div>
+    <div class="start-right">
+      <div class="pager">
+        <div class="pager-screen">
+          <div>22:00 PAGE x3</div>
+          <div>ED: CT BRAIN RESUS2</div>
+          <div>ED: CTPA BED 7 ?PE</div>
+          <div>SURG: CT AP URGENT!!</div>
+        </div>
+        <div class="pager-btns"><i></i><i></i><i></i></div>
+      </div>
+      <ul class="howto">
+        <li><b>E</b> at the desk opens PACS. Scroll real stacks, window them, mark the lesion, sign.</li>
+        <li>Ignore the list and it escalates: queues, chases, forms under the door, the ED consultant, and eventually someone from Executive.</li>
+        <li>Fire spreads. Sprinklers ruin PACS. Security remembers faces.</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- ============ PACS ============ -->
+<div id="pacs" hidden>
+  <header class="pacs-bar">
+    <span class="brand">NightPACS <small>v3.1 · on-call workstation</small></span>
+    <span class="pacs-tools">
+      <button data-tool="scroll" class="on">Stack</button>
+      <button data-tool="wl">W/L</button>
+      <button data-tool="mark">Mark (M)</button>
+      <span class="sep"></span>
+      <button data-win="Soft tissue">Soft tissue</button>
+      <button data-win="Lung">Lung</button>
+      <button data-win="Bone">Bone</button>
+      <button data-win="Brain">Brain</button>
+    </span>
+    <button id="pacs-close">Stand up (Esc)</button>
+  </header>
+  <div class="pacs-body">
+    <aside class="pacs-list">
+      <h3>Worklist <span id="pacs-count">0</span></h3>
+      <div id="pacs-rows"></div>
+      <button id="pacs-nad" class="danger">Speed-report all as normal</button>
+    </aside>
+    <main class="pacs-viewer">
+      <div class="pacs-canvas-wrap">
+        <canvas id="pacs-view" width="512" height="512"></canvas>
+        <input type="range" id="pacs-slider" min="0" max="63" value="0" aria-label="Slice">
+      </div>
+      <p class="pacs-help">Scroll wheel or drag: slices · Right-drag: window/level · 1–4: presets</p>
+    </main>
+    <aside class="pacs-report">
+      <h3>Request</h3>
+      <div id="pacs-req"></div>
+      <button id="pacs-form" class="ghost">View request form</button>
+      <h3>Report</h3>
+      <div id="pacs-findings"></div>
+      <p id="pacs-markhint" class="muted"></p>
+      <button id="pacs-sign" class="primary" disabled>Sign report</button>
+      <p id="pacs-feedback"></p>
+    </aside>
+  </div>
+  <div id="pacs-error" hidden>
+    <div><b>:(</b><p>PACS has encountered water and needs to restart.<br>Please contact IT. (They are asleep.)</p></div>
+  </div>
+</div>
+
+<!-- ============ REQUEST FORM ============ -->
+<div id="form-modal" hidden>
+  <div class="form-wrap">
+    <div id="form-body"></div>
+    <div id="form-actions"></div>
+  </div>
+</div>
+
+<!-- ============ MORNING ============ -->
+<div id="morning" hidden>
+  <div class="paper-news">
+    <div class="masthead">THE DAILY HANDOVER <small>08:00 · Late edition · Free in the tea room</small></div>
+    <h1 id="m-headline"></h1>
+    <ul id="m-sub"></ul>
+    <div class="news-cols">
+      <div>
+        <div class="grade-stamp"><small>Performance review</small><span id="m-grade"></span><small id="m-scores"></small></div>
+        <h3>Morbidity &amp; Mortality meeting</h3>
+        <ul id="m-mm"></ul>
+      </div>
+      <div>
+        <h3>By the numbers</h3>
+        <div id="m-stats"></div>
+      </div>
+    </div>
+    <button id="again-btn">Work another night</button>
+  </div>
+</div>
+
+<script type="module" src="/src/main.js"></script>
+</body>
+</html>
