@@ -40,9 +40,34 @@
     <dt>Q</dt><dd>Drop</dd>
     <dt>At PACS</dt><dd>Wheel or drag to scroll slices · right-drag for window/level · 1–4 presets · M to mark the lesion · Esc to stand up</dd>
     <dt class="touch-only">On a phone</dt><dd class="touch-only">Left stick moves (push it fully to run) · drag anywhere to look · Grab/Throw, E (use, talk, push a bed), the item button (spray, flick, eat), Jump, Drop. At PACS, drag the image to scroll and use the W/L and Mark buttons.</dd>
+    <dt>Hiding</dt><dd>E at a hiding spot (under the desk, toilet stall, laundry hamper, morgue drawer…). E again to come out. Lock the reading-room door and registrars have to knock.</dd>
+    <dt>Lift</dt><dd>East end of the corridor: roof and basement.</dd>
     <dt>Cheats</dt><dd>L dumps 5 requests on the list · T skips an hour</dd>
   </dl>
   <p>Press H (or tap here) to close.</p>
+</div>
+
+<div id="hide-overlay" hidden data-kind="dark"><div id="hide-text"></div></div>
+
+<div id="lift-modal" hidden>
+  <div class="lift-card">
+    <div class="lift-title">LIFT <small>Max 13 persons or 1 bariatric bed</small></div>
+    <button data-floor="roof"><b>R</b><span>Roof · Helipad</span></button>
+    <button data-floor="main"><b>G</b><span>Ground · Emergency</span></button>
+    <button data-floor="basement"><b>B</b><span>Basement · Morgue, Film Archive, Boiler</span></button>
+    <button data-floor="" class="ghost">Stay here</button>
+  </div>
+</div>
+
+<div id="argue-modal" hidden>
+  <div class="argue-card">
+    <div class="argue-head">
+      <div class="argue-who"><b id="argue-name"></b><small id="argue-title"></small></div>
+      <div class="resolve"><span>Registrar resolve</span><div class="resolve-bar"><i id="argue-bar"></i></div></div>
+    </div>
+    <div id="argue-log"></div>
+    <div id="argue-opts"></div>
+  </div>
 </div>
 
 <div id="paused" hidden><div class="paused-card"><b>Paused</b><span>Click to keep ignoring the worklist</span></div></div>

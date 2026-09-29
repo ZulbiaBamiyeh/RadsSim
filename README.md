@@ -68,6 +68,25 @@ At the PACS workstation:
   - A hospital cat.
 - **Morning handover.** At 08:00 you get a tabloid front page, a performance-review stamp, stats, and an M&M list of your misses.
 
+## Hiding, new areas, and arguing
+
+- **Hiding:** press E at a hiding spot to hide, and E again to come out. Registrars and the consultant who lose sight of you search where you were last seen.
+  - **Spots:** under the reading-room desk, inside the staff fridge, the CT gantry, the MRI bore, among the waiting-room patients, a toilet stall, the supply shelves, under the on-call bed, the wardrobe, behind the chapel altar or the cafe counter, the laundry hamper, the helicopter, a morgue drawer, the film archive, behind the boiler, and the old darkroom.
+  - **Getting found:** searchers who come close can find you. Worse spots are more likely to be checked, and you might sneeze.
+  - **Locking the door:** you can lock the reading-room door. Registrars knock and wait, but forms still get slid under it. Security has a key.
+- **New areas:**
+  - **East wing:** staff toilets, supply cupboard (hand sanitiser is 70% alcohol, so it burns), the on-call room with a real bed, the chapel (candles), and the closed cafe.
+  - **Lift** at the east end of the corridor, which leads to:
+    - **The roof:** a helipad and a helicopter you shouldn't start. The rotor wash blows things off the roof, and you can fly off it on an extinguisher.
+    - **The basement:** morgue, film archive (very flammable), a boiler you can crank until it bursts, and the abandoned 1972–1999 radiology department with a lightbox holding a never-reported 1987 film.
+    - **After 03:00,** a ghost wanders the basement.
+- **Arguing:** Bounce on a request form starts an argument with the registrar. You get four rounds to wear down their resolve.
+  - **Sensible arguments:** "What's the actual clinical question?", "Ultrasound first?". They land harder when the request really is weak.
+  - **Form-based arguments:** missing pregnancy status, eGFR, pager. These are very strong if the form really has that problem, and embarrassing if it doesn't, so read the form.
+  - **Wild arguments:** "We're out of radiation tonight", "The CT is haunted". These are a gamble. When one works, the rumour spreads around the ED.
+  - **"Call your consultant":** this goes badly if the scan was actually needed.
+  - **Consequences:** winning withdraws the request, though it may come back later "much worse". Arguing away a scan that had real pathology shows up at the morning M&M.
+
 ## Code map
 
 | File | What it does |
@@ -84,6 +103,7 @@ At the PACS workstation:
 | `src/player.js` | First-person controller, carrying, bed pushing |
 | `src/particles.js` | GPU point particles for flames, smoke, spray and sprinklers |
 | `src/audio.js` | Synthesised sound effects (no audio files) |
+| `src/argue.js` | The registrar argument when you bounce a request |
 | `src/touch.js` | Phone/tablet controls: move stick, drag-to-look, action buttons |
 
 All patients, staff and hospital names are made up. Don't put real request forms or patient data into the repo.

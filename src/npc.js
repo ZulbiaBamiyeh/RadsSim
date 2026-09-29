@@ -1,6 +1,6 @@
 // ED inhabitants: patients, nurses, registrars who want their scans, security, firefighters, a cat.
 import * as THREE from 'three';
-import { collideCircle, findPath, randomCellIn, zoneAtWorld, ZONE_BY_ID } from './map.js';
+import { collideCircle, findPath, randomCellIn, zoneAtWorld, ZONE_BY_ID, regionAt, walkable, W } from './map.js';
 import { mat } from './world.js';
 import { sfx } from './audio.js';
 
@@ -16,6 +16,9 @@ const ROLES = {
   security: { body: '#15161a', title: 'Security', speed: 1.4 },
   firefighter: { body: '#b58a2c', title: 'Firefighter', speed: 2.4 },
   dms: { body: '#5a5f66', title: 'Director of Medical Services', speed: 1.5 },
+  chaplain: { body: '#4b3a63', title: 'Hospital Chaplain', speed: 1.0 },
+  cleaner: { body: '#5f7f6a', title: 'Night Cleaner', speed: 1.1 },
+  ghost: { body: '#e8f0ff', title: 'Ghost of a Patient (unreported since 1987)', speed: 0.8 },
   cat: { body: '#e08a2e', title: 'Hospital cat', speed: 1.6 },
 };
 const SKIN = ['#f1c9a5', '#e0ac69', '#c68642', '#8d5524', '#ffdbac', '#a0673c'];
@@ -34,6 +37,14 @@ export const LINES = {
   security: ['OI! STOP RIGHT THERE!', 'Come back here!', 'Radiologist! Freeze!', 'Not in my ED!'],
   firefighter: ['Stand back!', 'Who\'s the idiot with the microwave?', 'Knockdown!', 'Hose it!'],
   cat: ['mrrp', 'mrow?', '*judges you*', 'mew'],
+  search: ['Where did they go?', 'Doctor? Hellooo?', 'I KNOW you\'re in here', 'Their coffee is still warm...', 'Come out, it\'s just ONE scan!', 'Radiologist? Ollie ollie oxen free?', 'I can hear breathing...'],
+  giveup: ['Guess they went home.', 'Fine. FINE.', 'I\'ll page them again.', 'Must be in the toilet. Again.'],
+  found: ['FOUND YOU!', 'Aha! There you are!', 'Nice try.', 'Really? In THERE?'],
+  lift: ['They took the lift!', 'The LIFT? Seriously?', 'I\'m not chasing them to the roof.'],
+  knock: ['*knock knock*', 'I can see the light under the door!', 'I can hear you scrolling!', 'Open up, it\'s urgent!', 'Is this door... locked?', 'I\'ll slide the form under.'],
+  chaplain: ['Would you like to talk?', 'Rough night?', 'I won\'t tell them you\'re here.', 'Bless this worklist.', 'Even radiologists need rest.'],
+  cleaner: ['Mind the wet floor.', 'Who microwaved foil AGAIN?', 'I\'ve seen things in this hospital.', 'Don\'t step there. Just... don\'t.'],
+  ghost: ['Did... you... report... my scan...?', 'It was... a pneumothorax...', 'Woooo. (unreported since 1987)', 'The lightbox... is still on...', 'Is it... morning yet...?'],
   thanks: ['Thanks!!', 'Legend!', 'You\'re the best', 'Finally!'],
   bounce: ['Ugh... fine.', 'My consultant said you\'d say that', 'I\'ll be back.', 'Rude.'],
 };
@@ -109,6 +120,7 @@ export class NPC {
     this.walkT = Math.random() * 10;
     this.returnDelay = 0;
     this.buildMesh();
+    if (role === 'ghost') for (const m of this.mats) { m.transparent = true; m.opacity = 0.45; m.emissive = new THREE.Color('#8fb0ff'); }
     this.bubble = bubbleSprite();
     this.mesh.add(this.bubble.sprite);
     this.bubble.sprite.position.y = role === 'cat' ? 1.0 : 2.3;
@@ -251,6 +263,29 @@ export class NPC {
   }
 
   distToPlayer() { const p = this.G.player.pos; return Math.hypot(p.x - this.pos.x, p.z - this.pos.y); }
+  region() { return regionAt(this.pos.x, this.pos.y); }
+  canSee() { return this.G.playerVisible() && this.G.playerRegion() === this.region(); }
+
+  // Lost sight of the player (hid, took the lift, or locked a door): go look where they were last seen.
+  startSearch() {
+    const G = this.G;
+    this.resumeState = this.state;
+    this.searchT = 14 + Math.random() * 10;
+    this.checkT = 1.5;
+    this.pathT = 0;
+    if (G.lastSeen.region !== this.region()) {
+      // Chased them to the lift
+      this.goTo(61.2, 10.5);
+      this.say(G.lastSeen.lift ? pick(LINES.lift) : pick(LINES.search), 3);
+    } else this.say(pick(LINES.search), 3);
+    this.setState('search');
+  }
+  giveUp() {
+    this.say(pick(LINES.giveup), 3);
+    this.cooldown = 35 + Math.random() * 20;
+    this.G.stats.searchesEvaded++;
+    this.setState('idle', 1);
+  }
 
   // Decide what to do next (roles).
   think() {
@@ -264,17 +299,24 @@ export class NPC {
       case 'surgreg': {
         const pending = G.pendingFor(this);
         if (this.cooldown <= 0 && pending.length) {
-          if (G.list() >= G.T.chase && this.distToPlayer() < 40) { this.setState('chase'); return; }
+          if (G.list() >= G.T.chase && this.canSee()) { this.setState('chase'); return; }
           if (G.list() >= G.T.queue) { this.setState('toQueue'); return; }
         }
         break;
       }
       case 'consultant':
       case 'dms':
-        this.setState('stalk');
+        if (this.dismiss) { this.goTo(10.5, 27); this.setState('leave'); return; }
+        if (this.canSee() && this.cooldown <= 0) { this.setState('stalk'); return; }
+        break;
+      case 'ghost': {
+        const t = randomCellIn(Math.random() < 0.5 ? 'basement' : pick(['morgue', 'archive', 'olddept']));
+        this.goTo(t.x, t.z);
+        this.setState('walk');
         return;
+      }
       case 'security':
-        if (G.wanted > 0) { this.setState('hunt'); this.say(pick(LINES.security), 2.5, true); return; }
+        if (G.wanted > 0 && this.cooldown <= 0) { this.setState('hunt'); this.say(pick(LINES.security), 2.5, true); return; }
         this.goTo(23.5 + Math.random(), 16 + Math.random());
         this.setState('walk', 0);
         return;
@@ -310,10 +352,10 @@ export class NPC {
     const dP = this.distToPlayer();
 
     // Fire overrides
-    if (this.state !== 'onfire' && this.role !== 'firefighter' && G.fire.at(this.pos.x, this.pos.y) > 0.35) this.ignite();
+    if (this.state !== 'onfire' && this.role !== 'firefighter' && this.role !== 'ghost' && G.fire.at(this.pos.x, this.pos.y) > 0.35) this.ignite();
 
     // Evacuation override
-    const evacuates = !['firefighter', 'security', 'dms'].includes(this.role) && this.special !== 'sandwich';
+    const evacuates = !['firefighter', 'security', 'dms', 'ghost'].includes(this.role) && this.special !== 'sandwich' && this.region() === 'main';
     if (G.alarm && evacuates && !['panic', 'assembled', 'knocked', 'onfire'].includes(this.state)) {
       if (this.state === 'lie' && Math.random() < 0.5) this.say(pick(LINES.miracle), 2.5, true);
       this.detachBed();
@@ -328,6 +370,7 @@ export class NPC {
         if (this.follow(dt, this.R.speed)) this.setState('idle', 1 + Math.random() * 4);
         if (this.role === 'patient' && Math.random() < 0.002 && dP < 6) this.say(pick(LINES.patient));
         if (this.role === 'nurse' && Math.random() < 0.0015 && dP < 8) this.say(pick(LINES.nurse));
+        if ((this.role === 'chaplain' || this.role === 'cleaner' || this.role === 'ghost') && Math.random() < 0.004 && dP < 7) this.say(pick(LINES[this.role]), 3);
         break;
       case 'toBed':
         if (!this.homeBed) { this.setState('idle', 1); break; }
@@ -372,9 +415,13 @@ export class NPC {
       }
       case 'chase': {
         if (!G.pendingFor(this).length || this.cooldown > 0) { this.think(); break; }
+        if (!this.canSee()) { this.startSearch(); break; }
         this.pathT -= dt;
         if (dP > 1.4) {
-          if (this.pathT <= 0) { this.goTo(P.x, P.z); this.pathT = 0.7; }
+          if (this.pathT <= 0) {
+            this.pathT = 0.7;
+            if (!this.goTo(P.x, P.z)) { this.startKnock(); break; }
+          }
           this.follow(dt, this.R.speed * 1.35);
         } else {
           this.face = Math.atan2(P.x - this.pos.x, P.z - this.pos.y);
@@ -384,6 +431,7 @@ export class NPC {
         break;
       }
       case 'stalk': {
+        if (!this.dismiss && !this.canSee()) { this.startSearch(); break; }
         this.pathT -= dt;
         const keep = this.role === 'dms' ? 2.2 : 1.8;
         if (dP > keep) {
@@ -397,8 +445,9 @@ export class NPC {
       }
       case 'hunt': {
         if (G.wanted <= 0) { this.think(); break; }
+        if (!this.canSee()) { this.startSearch(); break; }
         this.pathT -= dt;
-        if (this.pathT <= 0) { this.goTo(P.x, P.z); this.pathT = 0.5; }
+        if (this.pathT <= 0) { this.pathT = 0.5; if (!this.goTo(P.x, P.z)) { this.startKnock(); this.knockT = 8; break; } }
         this.follow(dt, 4.3);
         if (Math.random() < 0.01) this.say(pick(LINES.security), 2, true);
         if (dP < 1.0) G.caught(this);
@@ -418,6 +467,51 @@ export class NPC {
           G.fire.suppressCone(this.pos.x, this.pos.y, dx / d, dz / d, 4.5, 2.2, dt);
           G.spray(this.pos.x + Math.sin(this.face) * 0.5, 1.2, this.pos.y + Math.cos(this.face) * 0.5, dx / d, -0.1, dz / d, true);
           if (Math.random() < 0.004) this.say(pick(LINES.firefighter), 2, true);
+        }
+        break;
+      }
+      case 'search': {
+        if (this.canSee() && dP < 9) {
+          this.say(pick(['THERE you are!', 'Gotcha!', 'Oh hi!']), 2, true);
+          this.setState(this.resumeState === 'search' ? 'chase' : this.resumeState || 'chase');
+          break;
+        }
+        this.searchT -= dt;
+        if (this.searchT <= 0) { this.giveUp(); break; }
+        if (!this.path || !this.path.length) {
+          this.pathT -= dt;
+          if (this.pathT <= 0) {
+            this.pathT = 1 + Math.random() * 2;
+            const ls = G.lastSeen;
+            if (ls.region === this.region()) {
+              for (let k = 0; k < 6; k++) {
+                const tx = ls.x + (Math.random() - 0.5) * 7, tz = ls.z + (Math.random() - 0.5) * 7;
+                if (walkable(Math.floor(tx), Math.floor(tz)) && this.goTo(tx, tz)) break;
+              }
+            }
+            if (Math.random() < 0.35) this.say(pick(LINES.search), 2.5);
+          }
+        }
+        this.follow(dt, this.R.speed);
+        // Poke around near hiding spots
+        const h = G.player.hidden;
+        this.checkT -= dt;
+        if (h && this.checkT <= 0) {
+          this.checkT = 1.5;
+          if (this.region() === G.playerRegion() && Math.hypot(h.x - this.pos.x, h.z - this.pos.y) < 2.2 && Math.random() < h.chance) G.foundPlayer(this);
+          else if (h.id === 'stall' && Math.hypot(h.x - this.pos.x, h.z - this.pos.y) < 3 && Math.random() < 0.4) this.say('I can see your shoes under the door...', 3);
+        }
+        break;
+      }
+      case 'knock': {
+        if (!G.world.doorLocked) { this.setState('chase'); break; }
+        this.knockT -= dt;
+        if (this.follow(dt, this.R.speed)) this.face = Math.PI;
+        this.nagT -= dt;
+        if (this.nagT <= 0) { this.say(pick(LINES.knock), 2.5); this.nagT = 4 + Math.random() * 3; G.onKnock(this); }
+        if (this.knockT <= 0) {
+          if (this.role === 'security') { G.world.setDoorLocked(false); this.say('I have a key, doc.', 3); G.toast('Security unlocked the reading-room door.'); this.setState('hunt'); break; }
+          this.giveUp();
         }
         break;
       }
@@ -444,7 +538,7 @@ export class NPC {
         }
         break;
       case 'onfire':
-        if (this.stateT <= 0 || G.fire.wet[Math.floor(this.pos.y) * 44 + Math.floor(this.pos.x)] > 0) {
+        if (this.stateT <= 0 || G.fire.wet[Math.floor(this.pos.y) * W + Math.floor(this.pos.x)] > 0) {
           this.fireT = 0;
           this.soot();
           this.say('*cough*', 2);
@@ -471,6 +565,12 @@ export class NPC {
     this.animate(dt);
   }
 
+  startKnock() {
+    this.goTo(5 + (Math.random() - 0.5) * 1.5, 9.4 + Math.random() * 0.6);
+    this.knockT = 20 + Math.random() * 15;
+    this.setState('knock');
+  }
+
   startPanic() {
     const t = randomCellIn('outside');
     t.x = 22 + Math.random() * 19;
@@ -495,6 +595,8 @@ export class NPC {
       b.position.set(0, 0.25, 0.3);
     } else if (this.state === 'sit') {
       b.position.y = -0.25;
+    } else if (this.role === 'ghost') {
+      b.position.y = 0.25 + Math.sin(this.walkT * 2) * 0.12;
     } else if (moving) {
       b.position.y = Math.abs(Math.sin(this.walkT * 9)) * 0.06;
     }

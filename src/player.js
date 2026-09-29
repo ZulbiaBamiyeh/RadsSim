@@ -63,6 +63,13 @@ export class Player {
 
   update(dt, G) {
     const k = this.keys;
+    if (this.hidden) {
+      const h = this.hidden;
+      this.pos.x = h.x; this.pos.z = h.z; this.y = 0; this.vy = 0; this.vel.x = 0; this.vel.z = 0;
+      this.camera.position.set(h.x, h.camY, h.z);
+      this.camera.rotation.set(this.pitch, this.yaw, 0, 'YXZ');
+      return;
+    }
     let mx = 0, mz = 0;
     if (this.enabled) {
       if (k.has('KeyW') || k.has('ArrowUp')) mz += 1;

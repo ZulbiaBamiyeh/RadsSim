@@ -102,7 +102,7 @@ export class Pacs {
   }
   close() { this.el.hidden = true; }
 
-  queue() { return this.G.cases.filter((c) => !c.reported); }
+  queue() { return this.G.openCases(); }
 
   setTool(t) {
     this.tool = t;

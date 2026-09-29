@@ -61,6 +61,11 @@ export const PROP_TYPES = {
     add(g, B(0.19, 0.02, 0.13), '#6fae4a', 0, 0);
     add(g, B(0.18, 0.02, 0.12), '#e8c98f', 0, 0.025);
   } },
+  gel: { name: 'Hand sanitiser (70% alcohol)', r: 0.08, h: 0.22, mass: 0.6, fuel: 0.5, build(g) {
+    add(g, C(0.06, 0.18), '#dff3ff', 0, -0.02, 0, 0, 0, 0, new THREE.MeshLambertMaterial({ color: '#cfeeff', transparent: true, opacity: 0.8 }));
+    add(g, C(0.02, 0.05), '#2a6fdb', 0, 0.09);
+    add(g, B(0.06, 0.015, 0.015), '#2a6fdb', 0.03, 0.11);
+  } },
   coffee: { name: 'Cold coffee', r: 0.06, h: 0.13, mass: 0.3, use: 'drink', build(g) {
     add(g, C(0.045, 0.12), '#f4efe6');
     add(g, C(0.047, 0.03), '#6b4a2e', 0, 0.045);

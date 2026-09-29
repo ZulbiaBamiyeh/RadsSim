@@ -1,6 +1,6 @@
 // Builds the ED: floor, walls, ceiling, furniture, signage. Returns handles the game logic needs.
 import * as THREE from 'three';
-import { W, H, grid, ZONES, zoneAt, addStatic, isWall } from './map.js';
+import { W, H, grid, zoneAt, addStatic, removeStatic, isWall, DOOR_ROWS } from './map.js';
 
 const PX = 32; // floor texture pixels per metre
 
@@ -62,15 +62,14 @@ export function buildWorld(scene) {
   const fc = document.createElement('canvas');
   fc.width = W * PX; fc.height = H * PX;
   const g = fc.getContext('2d');
-  g.fillStyle = '#222';
-  g.fillRect(0, 0, fc.width, fc.height);
+  g.clearRect(0, 0, fc.width, fc.height);
   for (let y = 0; y < H; y++) {
     for (let x = 0; x < W; x++) {
       const z = zoneAt(x, y);
       if (!z) continue;
       g.fillStyle = z.floor;
       g.fillRect(x * PX, y * PX, PX, PX);
-      if (z.id !== 'outside') {
+      if (z.id !== 'outside' && z.id !== 'roof') {
         g.fillStyle = 'rgba(0,0,0,0.06)';
         if ((x + y) % 2) g.fillRect(x * PX, y * PX, PX, PX);
         g.strokeStyle = 'rgba(255,255,255,0.08)';
@@ -100,7 +99,7 @@ export function buildWorld(scene) {
   const floorTex = new THREE.CanvasTexture(fc);
   floorTex.colorSpace = THREE.SRGBColorSpace;
   floorTex.anisotropy = 4;
-  const floor = new THREE.Mesh(new THREE.PlaneGeometry(W, H), new THREE.MeshLambertMaterial({ map: floorTex }));
+  const floor = new THREE.Mesh(new THREE.PlaneGeometry(W, H), new THREE.MeshLambertMaterial({ map: floorTex, transparent: true, alphaTest: 0.5 }));
   floor.rotation.x = -Math.PI / 2;
   floor.position.set(W / 2, 0, H / 2);
   scene.add(floor);
@@ -123,11 +122,21 @@ export function buildWorld(scene) {
     floorTex.needsUpdate = true;
   };
 
-  // Outside ground beyond the fence
+  // Outside ground beyond the fence (stops at the building's east edge; the roof and basement float in the dark)
   const ground = new THREE.Mesh(new THREE.PlaneGeometry(200, 200), mat('#1c1f22'));
   ground.rotation.x = -Math.PI / 2;
-  ground.position.set(W / 2, -0.01, H / 2);
+  ground.position.set(64 - 100, -0.01, H / 2);
   scene.add(ground);
+  const ground2 = new THREE.Mesh(new THREE.PlaneGeometry(64, 150), mat('#1c1f22'));
+  ground2.rotation.x = -Math.PI / 2;
+  ground2.position.set(32, -0.01, 30 + 75);
+  scene.add(ground2);
+  // City lights far below the roof
+  const cityGeo = new THREE.BufferGeometry();
+  const cityPts = [];
+  for (let i = 0; i < 900; i++) cityPts.push(70 + Math.random() * 160 - 40, -40 - Math.random() * 5, -80 + Math.random() * 110);
+  cityGeo.setAttribute('position', new THREE.Float32BufferAttribute(cityPts, 3));
+  scene.add(new THREE.Points(cityGeo, new THREE.PointsMaterial({ color: '#ffcf7a', size: 0.5, fog: false })));
 
   // ---------- walls ----------
   let nWall = 0, nFence = 0;
@@ -145,7 +154,8 @@ export function buildWorld(scene) {
         wallMesh.setMatrixAt(wi++, dummy.matrix);
       } else if (grid[y][x] === 'F') {
         dummy.position.set(x + 0.5, 0.55, y + 0.5);
-        dummy.rotation.set(0, y === H - 1 ? 0 : Math.PI / 2, 0);
+        const horiz = grid[y][x - 1] === 'F' || grid[y][x + 1] === 'F';
+        dummy.rotation.set(0, horiz ? 0 : Math.PI / 2, 0);
         dummy.updateMatrix();
         fenceMesh.setMatrixAt(fi++, dummy.matrix);
       }
@@ -160,23 +170,26 @@ export function buildWorld(scene) {
   }
   scene.add(skirt);
   // Lintels above doorways so openings read as doors (and signs have a wall to sit on)
-  for (const row of [8, 13, 25]) {
-    for (let x = 1; x < W - 1; x++) {
+  for (const [row, xa, xb] of DOOR_ROWS) {
+    for (let x = xa; x <= xb; x++) {
       if (grid[row][x] === '#') continue;
       box(scene, 1, 0.8, 1, '#e9e6df', x + 0.5, 2.6, row + 0.5);
     }
   }
 
   // ---------- ceiling + light panels ----------
-  const ceil = new THREE.Mesh(new THREE.PlaneGeometry(W, 25), mat('#cfd3d6'));
-  ceil.rotation.x = Math.PI / 2;
-  ceil.position.set(W / 2, 3, 12.5);
-  scene.add(ceil);
+  for (const [x0, z0, x1, z1, c] of [[0, 0, 64, 25, '#cfd3d6'], [65, 16, 96, 30, '#8d8b84']]) {
+    const ceil = new THREE.Mesh(new THREE.PlaneGeometry(x1 - x0, z1 - z0), mat(c));
+    ceil.rotation.x = Math.PI / 2;
+    ceil.position.set((x0 + x1) / 2, 3, (z0 + z1) / 2);
+    scene.add(ceil);
+  }
   const panelMat = new THREE.MeshBasicMaterial({ color: '#fbfbf2' });
   out.panelMat = panelMat;
-  for (let z = 2.5; z < 25; z += 4) {
+  for (let z = 2.5; z < H; z += 4) {
     for (let x = 2.5; x < W; x += 4) {
-      if (isWall(Math.floor(x), Math.floor(z))) continue;
+      const zz = zoneAt(Math.floor(x), Math.floor(z));
+      if (isWall(Math.floor(x), Math.floor(z)) || !zz || zz.id === 'outside' || zz.outdoor) continue;
       const p = new THREE.Mesh(new THREE.PlaneGeometry(1.2, 0.6), panelMat);
       p.rotation.x = Math.PI / 2;
       p.position.set(x, 2.99, z);
@@ -382,6 +395,214 @@ export function buildWorld(scene) {
   box(scene, 0.08, 2.2, 0.08, '#666', 37, 1.1, 28.6);
   sign(scene, 'ASSEMBLY\nAREA', 37, 2.3, 28.55, Math.PI, 1.0, 0.6, { bg: '#1b8a3c', fg: '#fff', font: 'bold 60px Arial' });
   box(scene, 0.15, 4.5, 0.15, '#444', 20, 2.25, 28.7);
+
+  // ======================================================================
+  // EAST WING, ROOF, BASEMENT, HIDING SPOTS
+  // ======================================================================
+  const burnBox = (minX, minZ, maxX, maxZ, h, color, fuel, kind = 'bench') => {
+    const m = furniture(scene, minX, minZ, maxX, maxZ, h, color, 'flammable');
+    const cells = [];
+    for (let y = Math.floor(minZ); y < Math.ceil(maxZ); y++) for (let x = Math.floor(minX); x < Math.ceil(maxX); x++) cells.push(y * W + x);
+    out.burnables.push({ mesh: m, cells, kind, fuel, char: 0 });
+    return m;
+  };
+  const plane = (w, h, color, x, y, z, ry = 0) => {
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshLambertMaterial({ color }));
+    m.position.set(x, y, z);
+    m.rotation.y = ry;
+    scene.add(m);
+    return m;
+  };
+
+  // Reading-room door you can lock (registrars can't get in; they knock instead)
+  const doorMesh = box(scene, 2, 2.2, 0.12, '#8a6a4a', 5, 1.1, 8.5, { mat: { unique: true } });
+  box(scene, 0.4, 0.3, 0.02, '#f4f4f4', 5.5, 1.5, 8.43).visible = false;
+  doorMesh.visible = false;
+  let doorStatic = null;
+  out.doorLocked = false;
+  out.setDoorLocked = (on) => {
+    out.doorLocked = on;
+    doorMesh.visible = on;
+    if (on && !doorStatic) doorStatic = addStatic(4, 8.4, 6, 8.6, 2.2, 'door');
+    if (!on && doorStatic) { removeStatic(doorStatic); doorStatic = null; }
+  };
+  out.interactables.push({ id: 'door', x: 5, z: 8.5, r: 1.5, label: 'Lock the reading-room door' });
+
+  // --- Staff toilets ---
+  for (const zx of [45.9, 47.4]) furniture(scene, zx - 0.04, 1.05, zx + 0.04, 3.3, 2.0, '#9aa9b5');
+  box(scene, 1.4, 2.0, 0.06, '#9aa9b5', 44.6 + 0.6, 1.0, 3.3);
+  furniture(scene, 44.2, 6.1, 45.8, 6.9, 0.9, '#e8eef2');
+  plane(1.4, 0.8, '#b8d6e6', 45, 1.7, 6.97, Math.PI);
+  sign(scene, 'TOILETS', 46.5, 2.6, 9.02, 0, 1.2, 0.3);
+  sign(scene, 'OUT OF\nORDER', 47.2, 1.3, 3.34, 0, 0.5, 0.3, { bg: '#fff', fg: '#c00', font: 'bold 44px "Caveat", cursive' });
+  out.interactables.push({ id: 'mirror', x: 45, z: 5.8, r: 1.0, label: 'Look in the mirror' });
+
+  // --- Supply cupboard ---
+  burnBox(50.05, 1.05, 50.7, 7.0, 2.2, '#7d7361', 1.5);
+  burnBox(53.3, 1.05, 53.95, 5.8, 2.2, '#7d7361', 1.5);
+  sign(scene, 'SUPPLY', 51.5, 2.6, 9.02, 0, 1.2, 0.3, { bg: '#555', fg: '#fff', font: 'bold 60px "Archivo Narrow", Arial' });
+  out.gelSpots = [{ x: 51.5, z: 3 }, { x: 52.5, z: 5.5 }, { x: 51.2, z: 6.3 }];
+
+  // --- On-call room ---
+  furniture(scene, 59, 1.2, 61.8, 3.2, 0.5, '#5b6e8c');
+  box(scene, 0.8, 0.12, 0.5, '#fff', 61.2, 0.56, 2.2);
+  furniture(scene, 55.1, 1.1, 56.3, 2.4, 2.0, '#6b4f36', 'flammable');
+  furniture(scene, 61.9, 4.2, 62.9, 5.0, 0.6, '#6b4f36');
+  const lamp = new THREE.PointLight(0xffc58a, 2.5, 6, 1.5);
+  lamp.position.set(62.2, 1.2, 4.6);
+  scene.add(lamp);
+  sign(scene, 'ON-CALL ROOM', 58.5, 2.6, 9.02, 0, 1.8, 0.3);
+  sign(scene, 'DO NOT\nDISTURB\n(please)', 58.5, 1.5, 8.02, Math.PI, 0.6, 0.5, { bg: '#fff9c4', fg: '#333', font: 'bold 36px "Caveat", cursive' });
+  out.interactables.push({ id: 'bed', x: 58.3, z: 2.3, r: 1.1, label: 'Sleep in the on-call bed (90 min)' });
+
+  // --- Chapel ---
+  for (const z of [15.6, 17.1, 18.6, 20.1]) {
+    burnBox(44.5, z, 47.3, z + 0.55, 0.5, '#6b4a2e', 1.2);
+    burnBox(48.7, z, 51.5, z + 0.55, 0.5, '#6b4a2e', 1.2);
+  }
+  burnBox(46.2, 23.2, 49.8, 24.0, 1.0, '#e9e0c8', 1.4, 'altar');
+  furniture(scene, 44.4, 23.3, 45.2, 24.0, 1.1, '#3b2d24');
+  out.candles = [];
+  for (let i = 0; i < 5; i++) {
+    const c = box(scene, 0.05, 0.18, 0.05, '#f5f0e0', 44.55 + i * 0.13, 1.19, 23.65);
+    const f = new THREE.Mesh(new THREE.SphereGeometry(0.03, 6, 4), new THREE.MeshBasicMaterial({ color: '#ffb347' }));
+    f.position.set(44.55 + i * 0.13, 1.31, 23.65);
+    f.visible = false;
+    scene.add(f);
+    out.candles.push(f);
+    c.visible = true;
+  }
+  const glass = new THREE.Mesh(new THREE.PlaneGeometry(1.4, 2.0), new THREE.MeshBasicMaterial({ color: '#6a5acd' }));
+  glass.position.set(48, 1.8, 24.97);
+  glass.rotation.y = Math.PI;
+  scene.add(glass);
+  sign(scene, 'CHAPEL', 47.5, 2.6, 12.96, Math.PI, 1.4, 0.35, { bg: '#4b3a63', fg: '#fff', font: 'bold 60px "Archivo Narrow", Arial' });
+  out.interactables.push({ id: 'candles', x: 45.1, z: 22.5, r: 1.0, label: 'Light a candle' });
+
+  // --- Cafe (closed) ---
+  furniture(scene, 54, 22.8, 61, 23.6, 1.0, '#8a5a3a');
+  furniture(scene, 61.3, 24.1, 62.9, 24.9, 1.6, '#333');
+  for (const [x, z] of [[55, 16], [58, 16], [61, 16], [55, 19], [58, 19], [61, 19]]) furniture(scene, x - 0.45, z - 0.45, x + 0.45, z + 0.45, 0.75, '#d9d2c3', 'flammable');
+  out.cafeChairs = [[55, 17], [58, 17], [61, 17], [55, 20], [58, 20], [61, 20], [54, 16], [57, 19]];
+  sign(scene, 'CAFE', 57.5, 2.6, 12.96, Math.PI, 1.2, 0.35, { bg: '#7a4b2a', fg: '#fff', font: 'bold 60px "Archivo Narrow", Arial' });
+  sign(scene, 'CLOSED\n(opens 7:30)', 57.5, 1.4, 22.78, Math.PI, 1.0, 0.45, { bg: '#fff', fg: '#7a4b2a', font: 'bold 44px Arial' });
+  out.interactables.push({ id: 'espresso', x: 61, z: 22.2, r: 1.1, label: 'Bash the cafe coffee machine' });
+
+  // --- Corridor east: laundry hamper + lift ---
+  furniture(scene, 53, 11.95, 54, 12.95, 1.0, '#4f7a8c', 'flammable');
+  box(scene, 1.02, 0.1, 1.02, '#dcdcdc', 53.5, 1.02, 12.45);
+  const liftDoor = (x, z, ry) => {
+    plane(1.4, 2.2, '#9aa3ad', x, 1.1, z, ry);
+    const s2 = sign(scene, 'LIFT', x, 2.5, z, ry, 0.8, 0.25, { bg: '#1d2733', fg: '#ffcf5a', font: 'bold 70px Arial' });
+    s2.position.x += Math.sin(ry) * 0.01; s2.position.z += Math.cos(ry) * 0.01;
+  };
+  liftDoor(62.97, 10.5, -Math.PI / 2);
+  out.lifts = {
+    main: { x: 61.8, z: 10.5, yaw: Math.PI / 2 },
+    roof: { x: 69.0, z: 7.5, yaw: -Math.PI / 2 },
+    basement: { x: 67.6, z: 22.5, yaw: -Math.PI / 2 },
+  };
+  out.interactables.push({ id: 'lift', x: 62.2, z: 10.5, r: 1.3, label: 'Call the lift' });
+
+  // --- Roof ---
+  furniture(scene, 66.1, 6, 67.9, 9, 2.6, '#8d9299');
+  liftDoor(67.92, 7.5, Math.PI / 2);
+  out.interactables.push({ id: 'lift', x: 68.5, z: 7.5, r: 1.3, label: 'Call the lift' });
+  // Helipad
+  g.strokeStyle = '#f4f4f4'; g.lineWidth = 6;
+  g.beginPath(); g.arc(81 * PX, 7 * PX, 4.2 * PX, 0, Math.PI * 2); g.stroke();
+  g.fillStyle = '#f4f4f4'; g.font = `bold ${PX * 4}px Arial`; g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.fillText('H', 81 * PX, 7.2 * PX); g.textAlign = 'left'; g.textBaseline = 'alphabetic';
+  floorTex.needsUpdate = true;
+  const heli = new THREE.Group();
+  const hb = new THREE.Mesh(new THREE.BoxGeometry(3.4, 1.5, 1.6), mat('#c62828'));
+  hb.position.set(0, 1.05, 0); heli.add(hb);
+  const hc = new THREE.Mesh(new THREE.SphereGeometry(0.8, 16, 10), new THREE.MeshLambertMaterial({ color: '#9fd3ff', transparent: true, opacity: 0.7 }));
+  hc.position.set(-1.6, 1.05, 0); hc.scale.set(1, 0.9, 1); heli.add(hc);
+  const tail = new THREE.Mesh(new THREE.BoxGeometry(3.2, 0.35, 0.3), mat('#c62828'));
+  tail.position.set(3.2, 1.3, 0); heli.add(tail);
+  for (const s of [-1, 1]) { const sk = new THREE.Mesh(new THREE.BoxGeometry(3.6, 0.08, 0.1), mat('#333')); sk.position.set(0, 0.15, s * 0.8); heli.add(sk); }
+  const rotor = new THREE.Group();
+  for (let i = 0; i < 2; i++) { const b = new THREE.Mesh(new THREE.BoxGeometry(8, 0.05, 0.25), mat('#222')); b.rotation.y = i * Math.PI / 2; rotor.add(b); }
+  rotor.position.set(0, 2.0, 0); heli.add(rotor);
+  heli.position.set(81, 0, 7);
+  scene.add(heli);
+  out.rotor = rotor;
+  addStatic(79.2, 6.1, 82.8, 7.9, 1.8);
+  addStatic(82.8, 6.8, 84.8, 7.2, 1.5);
+  for (const [x, z] of [[72, 2.5], [74.5, 2.5], [90, 11], [90, 3]]) furniture(scene, x - 0.9, z - 0.7, x + 0.9, z + 0.7, 1.4, '#a4aab0');
+  const beacon = new THREE.PointLight(0xff3030, 4, 10, 1.5);
+  beacon.position.set(94, 2, 1);
+  scene.add(beacon);
+  out.beacon = beacon;
+  const moon = new THREE.PointLight(0xaec6ff, 25, 40, 1.2);
+  moon.position.set(80, 12, 7);
+  scene.add(moon);
+  sign(scene, 'NO THROWING THINGS\nOFF THE ROOF', 67.93, 1.8, 6.4, Math.PI / 2, 1.2, 0.5, { bg: '#fff', fg: '#c00', font: 'bold 38px Arial' });
+  out.interactables.push({ id: 'heli', x: 80.5, z: 8.9, r: 1.3, label: 'Press buttons in the helicopter' });
+
+  // --- Basement ---
+  liftDoor(66.03, 22.5, Math.PI / 2);
+  out.interactables.push({ id: 'lift', x: 66.9, z: 22.5, r: 1.3, label: 'Call the lift' });
+  const drawers = document.createElement('canvas');
+  drawers.width = 512; drawers.height = 200;
+  const dg = drawers.getContext('2d');
+  dg.fillStyle = '#b9c2c7'; dg.fillRect(0, 0, 512, 200);
+  for (let i = 0; i < 8; i++) for (let j = 0; j < 3; j++) {
+    dg.strokeStyle = '#6d777d'; dg.lineWidth = 3; dg.strokeRect(i * 64 + 4, j * 66 + 4, 56, 58);
+    dg.fillStyle = '#8f999e'; dg.fillRect(i * 64 + 22, j * 66 + 28, 20, 6);
+  }
+  furniture(scene, 66.05, 17.05, 77.9, 17.7, 2.2, '#b9c2c7');
+  const dw = new THREE.Mesh(new THREE.PlaneGeometry(11.8, 2.2), new THREE.MeshLambertMaterial({ map: new THREE.CanvasTexture(drawers) }));
+  dw.position.set(72, 1.1, 17.71); scene.add(dw);
+  furniture(scene, 73, 18.3, 75.2, 19.0, 0.9, '#c7cfd4');
+  for (let x = 80; x < 94; x += 1.8) burnBox(x, 17.05, x + 1.6, 17.7, 2.3, '#5c4a30', 2.5, 'shelf');
+  furniture(scene, 68, 25.4, 71, 27.6, 2.5, '#6e4b3a');
+  const gauge = new THREE.Mesh(new THREE.CircleGeometry(0.2, 16), new THREE.MeshBasicMaterial({ color: '#f4f4f4' }));
+  gauge.position.set(69.5, 1.6, 25.38); gauge.rotation.y = Math.PI; scene.add(gauge);
+  out.gauge = gauge;
+  furniture(scene, 84, 26, 86.5, 27.4, 1.6, '#6a6f5b');
+  plane(1.6, 0.9, '#e8f0e0', 86.5, 1.6, 25.03);
+  const darkroomLight = new THREE.PointLight(0xff2020, 3, 5, 1.5);
+  darkroomLight.position.set(93.5, 2.4, 27.5);
+  scene.add(darkroomLight);
+  for (const [x, z] of [[72, 22], [86, 22]]) {
+    const l = new THREE.PointLight(0xcfe8b0, 3, 10, 1.6);
+    l.position.set(x, 2.7, z);
+    scene.add(l);
+  }
+  sign(scene, 'MORGUE', 71.5, 2.6, 21.02, 0, 1.4, 0.3, { bg: '#2d3a40', fg: '#fff', font: 'bold 60px "Archivo Narrow", Arial' });
+  sign(scene, 'FILM ARCHIVE', 86.5, 2.6, 21.02, 0, 2.0, 0.3, { bg: '#2d3a40', fg: '#fff', font: 'bold 60px "Archivo Narrow", Arial' });
+  sign(scene, 'BOILER ROOM', 72.5, 2.6, 23.98, Math.PI, 1.8, 0.3, { bg: '#2d3a40', fg: '#ff9', font: 'bold 60px "Archivo Narrow", Arial' });
+  sign(scene, 'RADIOLOGY 1972-1999', 88.5, 2.6, 23.98, Math.PI, 2.6, 0.3, { bg: '#5a4a2a', fg: '#fff', font: 'bold 54px "Archivo Narrow", Arial' });
+  sign(scene, 'OLD FILMS\n1974-1998\n(highly flammable?)', 86, 2.55, 17.72, 0, 1.4, 0.55, { bg: '#fff9c4', fg: '#333', font: 'bold 34px "Caveat", cursive' });
+  out.interactables.push(
+    { id: 'boiler', x: 69.5, z: 25.2, r: 1.1, label: 'Crank up the boiler' },
+    { id: 'oldbox', x: 86.5, z: 25.6, r: 1.2, label: 'Switch on the old lightbox' },
+  );
+
+  // --- Hiding spots ---
+  const seat = out.seats[out.seats.length - 1];
+  out.hideSpots = [
+    { id: 'desk', label: 'under the reading-room desk', ix: 1.7, iz: 2.4, x: 1.6, z: 1.45, camY: 0.5, exit: { x: 1.8, z: 2.6 }, overlay: 'under', chance: 0.35, note: 'You curl up under the desk among 40 years of dust.' },
+    { id: 'fridge', label: 'in the staff fridge', ix: 16.0, iz: 2.3, x: 17.05, z: 1.5, camY: 1.2, exit: { x: 16.8, z: 2.8 }, overlay: 'fridge', chance: 0.08, maxTime: 25, note: 'It is 4°C in here. The milk expired in March.' },
+    { id: 'ct', label: 'inside the CT gantry', ix: 24.8, iz: 4.6, x: 23.5, z: 3.5, camY: 1.0, exit: { x: 25.5, z: 5.5 }, overlay: 'gantry', chance: 0.25, note: 'You lie on the CT table inside the gantry. Nobody would look here.' },
+    { id: 'mri', label: 'inside the MRI bore', ix: 39.6, iz: 4.7, x: 38.9, z: 3.5, camY: 1.15, exit: { x: 40, z: 5.3 }, overlay: 'gantry', chance: 0.15, note: 'The magnet hums. Your bank cards are now blank.' },
+    { id: 'blend', label: 'pretending to be a patient', ix: seat.x, iz: seat.z + 1.1, x: seat.x, z: seat.z, camY: 1.15, exit: { x: seat.x, z: seat.z + 1.1 }, overlay: 'blend', chance: 0.3, note: 'You slump in a waiting-room chair and moan convincingly.' },
+    { id: 'stall', label: 'in a toilet stall', ix: 45.2, iz: 3.9, x: 45.2, z: 2.1, camY: 1.2, exit: { x: 46.5, z: 5.2 }, overlay: 'stall', chance: 0.05, note: 'You lock the stall. Surely they wouldn\'t...' },
+    { id: 'supply', label: 'behind the supply shelves', ix: 52.2, iz: 6.6, x: 53.5, z: 6.5, camY: 1.0, exit: { x: 52, z: 5.2 }, overlay: 'shelves', chance: 0.15, note: 'You squeeze behind a pallet of size-S gloves.' },
+    { id: 'underbed', label: 'under the on-call bed', ix: 60.2, iz: 3.9, x: 60.4, z: 2.2, camY: 0.3, exit: { x: 59.5, z: 4.2 }, overlay: 'under', chance: 0.3, note: 'Under the bed: a sock, a 2011 BNF and a pager that still beeps.' },
+    { id: 'wardrobe', label: 'in the wardrobe', ix: 56.1, iz: 3.1, x: 55.7, z: 1.75, camY: 1.55, exit: { x: 56.2, z: 3.4 }, overlay: 'slats', chance: 0.2, note: 'You hide among abandoned scrubs. Narnia is not back here.' },
+    { id: 'altar', label: 'behind the altar', ix: 48, iz: 22.4, x: 48, z: 24.5, camY: 0.9, exit: { x: 48, z: 22.2 }, overlay: 'dark', chance: 0.12, note: 'You crouch behind the altar and consider your choices.' },
+    { id: 'counter', label: 'behind the cafe counter', ix: 57.5, iz: 22.2, x: 57.5, z: 24.3, camY: 0.8, exit: { x: 57.5, z: 22.1 }, overlay: 'dark', chance: 0.25, note: 'You hide behind the counter next to a sad tray of muffins.' },
+    { id: 'hamper', label: 'in the laundry hamper', ix: 53.5, iz: 11.3, x: 53.5, z: 12.45, camY: 0.75, exit: { x: 53.5, z: 11.2 }, overlay: 'laundry', chance: 0.2, note: 'You burrow into the laundry. Some of it is damp. Don\'t think about it.' },
+    { id: 'heli', label: 'in the helicopter', ix: 78.3, iz: 7, x: 80, z: 7, camY: 1.3, exit: { x: 77.6, z: 7 }, overlay: 'heli', chance: 0.1, note: 'You sit in the pilot\'s seat. You do not know how to fly.' },
+    { id: 'drawer', label: 'in a morgue drawer', ix: 70.5, iz: 18.7, x: 70.5, z: 17.35, camY: 0.9, exit: { x: 70.5, z: 19.2 }, overlay: 'drawer', chance: 0.02, note: 'The drawer next to yours is labelled "RESERVED: NIGHT RADIOLOGIST".' },
+    { id: 'films', label: 'between the film shelves', ix: 93, iz: 18.9, x: 93.8, z: 17.9, camY: 1.2, exit: { x: 92.5, z: 19.2 }, overlay: 'shelves', chance: 0.3, note: 'You hide among 30,000 unreported films. Some are yours.' },
+    { id: 'boiler', label: 'behind the boiler', ix: 72.2, iz: 27, x: 67, z: 28.3, camY: 1.0, exit: { x: 72.4, z: 27 }, overlay: 'dark', chance: 0.15, note: 'It\'s warm and clanky back here.' },
+    { id: 'darkroom', label: 'in the old darkroom', ix: 92.3, iz: 27.2, x: 93.6, z: 27.6, camY: 1.4, exit: { x: 91.6, z: 26.6 }, overlay: 'red', chance: 0.1, note: 'The red safelight still works. It smells of fixer and regret.' },
+  ];
+  for (const h of out.hideSpots) out.interactables.push({ id: 'hide:' + h.id, x: h.ix, z: h.iz, r: 1.0, label: 'Hide ' + h.label, hide: h });
 
   // ---------- base fuel map ----------
   const fuel = new Float32Array(W * H);

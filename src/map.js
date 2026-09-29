@@ -1,38 +1,80 @@
-// Floor plan of the ED as a grid. 1 cell = 1 metre. Cell (x, y) spans world X [x, x+1], world Z [y, y+1].
-//   '#' wall   'F' outdoor fence   '.' indoor floor   'o' outdoor asphalt
-export const W = 44;
+// Floor plan of the hospital as a grid. 1 cell = 1 metre. Cell (x, y) spans world X [x, x+1], world Z [y, y+1].
+//   '#' wall   'F' fence / roof parapet   '.' indoor floor   'o' outdoor asphalt   'r' roof   ' ' void (nothing there)
+// Three disconnected regions share the grid, joined only by the lift:
+//   main building + ambulance bay (x 0-63), roof (x 65-95, y 0-14), basement (x 65-95, y 16-29).
+export const W = 96;
 export const H = 30;
 
-const rows = [];
-const rep = (c, n) => c.repeat(n);
-rows.push(rep('#', W));
-for (let y = 1; y <= 7; y++) rows.push('#' + rep('.', 8) + '#' + rep('.', 8) + '#' + rep('.', 10) + '#' + rep('.', 13) + '#');
-rows.push(rep('#', W)); // y = 8, doors punched below
-for (let y = 9; y <= 12; y++) rows.push('#' + rep('.', 42) + '#');
-rows.push(rep('#', W)); // y = 13
-for (let y = 14; y <= 24; y++) rows.push('#' + rep('.', 20) + '#' + rep('.', 21) + '#');
-rows.push(rep('#', 8) + rep('.', 5) + rep('#', 17) + rep('.', 4) + rep('#', 10)); // y = 25
-for (let y = 26; y <= 28; y++) rows.push('F' + rep('o', 42) + 'F');
-rows.push(rep('F', W));
+export const grid = [];
+for (let y = 0; y < H; y++) grid.push(new Array(W).fill(' '));
+const fill = (x0, y0, x1, y1, c) => { for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) grid[y][x] = c; };
 
-export const grid = rows.map((r) => r.split(''));
+// ---- Main building ----
+fill(0, 0, 63, 25, '#');
+fill(1, 1, 8, 7, '.');    // reading room
+fill(10, 1, 17, 7, '.');  // tea room
+fill(19, 1, 28, 7, '.');  // CT
+fill(30, 1, 42, 7, '.');  // MRI
+fill(44, 1, 48, 7, '.');  // toilets
+fill(50, 1, 53, 7, '.');  // supply cupboard
+fill(55, 1, 62, 7, '.');  // on-call room
+fill(1, 9, 62, 12, '.');  // corridor (runs the full width)
+fill(1, 14, 20, 24, '.'); // resus
+fill(22, 14, 42, 24, '.'); // waiting room
+fill(44, 14, 51, 24, '.'); // chapel
+fill(53, 14, 62, 24, '.'); // cafe
+fill(0, 26, 63, 29, 'F');
+fill(1, 26, 62, 28, 'o'); // ambulance bay
 const punch = (y, x0, x1) => { for (let x = x0; x <= x1; x++) grid[y][x] = '.'; };
 punch(8, 4, 5);   // reading room door
 punch(8, 13, 14); // tea room
 punch(8, 23, 24); // CT
 punch(8, 35, 36); // MRI
+punch(8, 46, 46); // toilets
+punch(8, 51, 51); // supply
+punch(8, 58, 59); // on-call room
 punch(13, 4, 17); // resus (open plan)
 punch(13, 28, 31); // waiting room
+punch(13, 47, 48); // chapel
+punch(13, 57, 58); // cafe
+punch(25, 8, 12); // ambulance doors
+punch(25, 30, 33); // front doors
+
+// ---- Roof (lift from the east end of the corridor) ----
+fill(65, 0, 95, 14, 'F');
+fill(66, 1, 94, 13, 'r');
+
+// ---- Basement ----
+fill(65, 16, 95, 29, '#');
+fill(66, 17, 77, 19, '.'); // morgue
+fill(79, 17, 94, 19, '.'); // film archive
+fill(66, 21, 94, 23, '.'); // basement corridor
+fill(66, 25, 80, 28, '.'); // boiler room
+fill(82, 25, 94, 28, '.'); // old radiology dept
+punch(20, 71, 72); punch(20, 86, 87); punch(24, 72, 73); punch(24, 88, 89);
+
+export const DOOR_ROWS = [[8, 1, 62], [13, 1, 62], [25, 1, 62], [20, 66, 94], [24, 66, 94]];
 
 export const ZONES = [
   { id: 'reading', name: 'Radiology Reading Room', x0: 1, y0: 1, x1: 8, y1: 7, floor: '#39424e', fuel: 0.7 },
   { id: 'tea', name: 'Staff Tea Room', x0: 10, y0: 1, x1: 17, y1: 7, floor: '#b9a47e', fuel: 0.55 },
   { id: 'ct', name: 'CT', x0: 19, y0: 1, x1: 28, y1: 7, floor: '#a9c4d6', fuel: 0.3 },
   { id: 'mri', name: 'MRI (Zone 4)', x0: 30, y0: 1, x1: 42, y1: 7, floor: '#b8b0d0', fuel: 0.3 },
-  { id: 'corridor', name: 'Main Corridor', x0: 1, y0: 8, x1: 42, y1: 13, floor: '#9fb89a', fuel: 0.3 },
+  { id: 'toilets', name: 'Staff Toilets', x0: 44, y0: 1, x1: 48, y1: 7, floor: '#dfe6ea', fuel: 0.2 },
+  { id: 'supply', name: 'Supply Cupboard', x0: 50, y0: 1, x1: 53, y1: 7, floor: '#a89f8a', fuel: 1.3 },
+  { id: 'oncall', name: 'On-call Room', x0: 55, y0: 1, x1: 62, y1: 7, floor: '#8c7b6b', fuel: 0.7 },
+  { id: 'corridor', name: 'Main Corridor', x0: 1, y0: 8, x1: 62, y1: 13, floor: '#9fb89a', fuel: 0.3 },
   { id: 'resus', name: 'Resus', x0: 1, y0: 14, x1: 20, y1: 24, floor: '#9fc0cf', fuel: 0.5 },
   { id: 'waiting', name: 'Waiting Room', x0: 22, y0: 14, x1: 42, y1: 25, floor: '#8fbab3', fuel: 0.6 },
-  { id: 'outside', name: 'Ambulance Bay', x0: 1, y0: 25, x1: 42, y1: 28, floor: '#3d3f44', fuel: 0 },
+  { id: 'chapel', name: 'Chapel', x0: 44, y0: 14, x1: 51, y1: 24, floor: '#7d6a8c', fuel: 0.9 },
+  { id: 'cafe', name: 'Cafe (closed)', x0: 53, y0: 14, x1: 62, y1: 24, floor: '#c9b27c', fuel: 0.5 },
+  { id: 'outside', name: 'Ambulance Bay', x0: 1, y0: 25, x1: 62, y1: 28, floor: '#3d3f44', fuel: 0 },
+  { id: 'roof', name: 'Roof / Helipad', x0: 66, y0: 1, x1: 94, y1: 13, floor: '#4a4d52', fuel: 0, outdoor: true },
+  { id: 'morgue', name: 'Morgue', x0: 66, y0: 17, x1: 77, y1: 19, floor: '#b8c4c8', fuel: 0.2 },
+  { id: 'archive', name: 'Film Archive', x0: 79, y0: 17, x1: 94, y1: 19, floor: '#7a6848', fuel: 2.0 },
+  { id: 'boiler', name: 'Boiler Room', x0: 66, y0: 25, x1: 80, y1: 28, floor: '#5a5550', fuel: 0.4 },
+  { id: 'olddept', name: 'Old Radiology Dept (1972-1999)', x0: 82, y0: 25, x1: 94, y1: 28, floor: '#4a3d3d', fuel: 0.8 },
+  { id: 'basement', name: 'Basement Corridor', x0: 66, y0: 20, x1: 94, y1: 24, floor: '#6d6a5e', fuel: 0.3 },
 ];
 export const ZONE_BY_ID = Object.fromEntries(ZONES.map((z) => [z.id, z]));
 
@@ -41,7 +83,7 @@ for (let y = 0; y < H; y++) {
   zoneGrid.push([]);
   for (let x = 0; x < W; x++) {
     let z = null;
-    if (!isWallChar(grid[y][x])) {
+    if (!isWallChar(grid[y][x]) && grid[y][x] !== ' ') {
       z = ZONES.find((zz) => x >= zz.x0 && x <= zz.x1 && y >= zz.y0 && y <= zz.y1) || ZONE_BY_ID.corridor;
     }
     zoneGrid[y].push(z);
@@ -52,29 +94,42 @@ function isWallChar(c) { return c === '#' || c === 'F'; }
 
 export function inBounds(x, y) { return x >= 0 && y >= 0 && x < W && y < H; }
 export function isWall(x, y) { return !inBounds(x, y) || isWallChar(grid[y][x]); }
+export function isVoid(x, y) { return inBounds(x, y) && grid[y][x] === ' '; }
 export function zoneAt(x, y) { return inBounds(x, y) ? zoneGrid[y][x] : null; }
 export function zoneAtWorld(wx, wz) { return zoneAt(Math.floor(wx), Math.floor(wz)); }
 export function isOutside(x, y) { return inBounds(x, y) && grid[y][x] === 'o'; }
+export function regionAt(wx, wz) { return wx < 64.5 ? 'main' : wz < 15 ? 'roof' : 'basement'; }
 
 // Static furniture (axis-aligned boxes). Also blocks NPC pathing on covered cells.
 export const statics = [];
 const blocked = new Uint8Array(W * H);
+function markStatic(s, d) {
+  for (let y = Math.floor(s.minZ); y < Math.ceil(s.maxZ); y++) {
+    for (let x = Math.floor(s.minX); x < Math.ceil(s.maxX); x++) {
+      if (!inBounds(x, y)) continue;
+      // Only block a cell if the box covers its centre.
+      if (x + 0.5 > s.minX && x + 0.5 < s.maxX && y + 0.5 > s.minZ && y + 0.5 < s.maxZ) blocked[y * W + x] += d;
+    }
+  }
+}
 export function addStatic(minX, minZ, maxX, maxZ, h, tag) {
   const s = { minX, minZ, maxX, maxZ, h, tag };
   statics.push(s);
-  for (let y = Math.floor(minZ); y < Math.ceil(maxZ); y++) {
-    for (let x = Math.floor(minX); x < Math.ceil(maxX); x++) {
-      if (!inBounds(x, y)) continue;
-      // Only block a cell if the box covers its centre.
-      if (x + 0.5 > minX && x + 0.5 < maxX && y + 0.5 > minZ && y + 0.5 < maxZ) blocked[y * W + x] = 1;
-    }
-  }
+  markStatic(s, 1);
   return s;
 }
-export function walkable(x, y) { return !isWall(x, y) && !blocked[y * W + x]; }
+export function removeStatic(s) {
+  const i = statics.indexOf(s);
+  if (i < 0) return;
+  statics.splice(i, 1);
+  markStatic(s, -1);
+}
+export function walkable(x, y) { return !isWall(x, y) && !isVoid(x, y) && !blocked[y * W + x]; }
 
 // Height of the highest furniture top under (x, z) that something at height `fromY` could stand on.
 export function groundAt(x, z, fromY = 0) {
+  const cx = Math.floor(x), cz = Math.floor(z);
+  if (!inBounds(cx, cz) || grid[cz][cx] === ' ') return -100;
   let g = 0;
   for (const s of statics) {
     if (s.h > fromY + 0.05 || s.h <= g) continue;
@@ -91,6 +146,7 @@ export function collideCircle(p, r, aboveY = 0) {
   for (let y = cz - 1; y <= cz + 1; y++) {
     for (let x = cx - 1; x <= cx + 1; x++) {
       if (!isWall(x, y)) continue;
+      if (inBounds(x, y) && grid[y][x] === 'F' && aboveY > 1.15) continue;
       if (pushOutBox(p, r, x, y, x + 1, y + 1)) hit = true;
     }
   }

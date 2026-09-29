@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import './style.css';
-import { W, ZONES, zoneAtWorld } from './map.js';
+import { W, ZONES, zoneAtWorld, regionAt } from './map.js';
 import { buildWorld } from './world.js';
 import { Fire } from './fire.js';
 import { Particles } from './particles.js';
@@ -12,6 +12,7 @@ import { makeCase, FINDINGS } from './cases.js';
 import { showForm, hideForm, minutesToClock } from './form.js';
 import { initAudio, sfx, setAlarm, crackle, rain } from './audio.js';
 import { isTouchDevice, setupTouch } from './touch.js';
+import { startArgument } from './argue.js';
 
 const $ = (id) => document.getElementById(id);
 const pick = (a) => a[Math.floor(Math.random() * a.length)];
@@ -49,6 +50,8 @@ const G = {
   stats: {
     reported: 0, correct: 0, nailed: 0, wrong: [], speed: 0,
     fires: 0, alarms: 0, hits: 0, throws: 0, bedsLaunched: 0, bedCrashes: 0, npcsIgnited: 0, pages: 0, nags: 0,
+    argumentsWon: 0, argumentsLost: 0, wildWins: 0, wildUsed: null, consultantCalls: 0, rumors: 0,
+    hides: 0, timesFound: 0, searchesEvaded: 0, knocks: 0, liftRides: 0, roofFalls: 0, roofThrows: 0, boilers: 0, helis: 0, ghostChats: 0, ancient: 0, foundIn: null,
     caught: 0, sandwiches: 0, catPets: 0, quenches: 0, mriStuck: 0, rockets: 0, peakList: 0, formsBounced: 0, goodCatches: 0, naps: 0, selfIgnitions: 0, ctJokes: 0,
   },
 };
@@ -73,8 +76,14 @@ for (let i = 0; i < 4; i++) {
 }
 
 // ---------------------------------------------------------------- helpers used by NPCs / props
-G.list = () => G.cases.reduce((n, c) => n + (c.reported ? 0 : 1), 0);
-G.pendingFor = (npc) => G.cases.filter((c) => !c.reported && c.requester === npc.name && (!c.snoozeUntil || c.snoozeUntil < G.time));
+G.isOpen = (c) => !c.reported && !c.cancelled;
+G.openCases = () => G.cases.filter(G.isOpen);
+G.list = () => G.cases.reduce((n, c) => n + (G.isOpen(c) ? 1 : 0), 0);
+G.pendingFor = (npc) => G.cases.filter((c) => G.isOpen(c) && c.requester === npc.name && (!c.snoozeUntil || c.snoozeUntil < G.time));
+G.lastSeen = { x: 3.2, z: 4.2, region: 'main', lift: false };
+G.rerequests = [];
+G.playerVisible = () => !G.player.hidden;
+G.playerRegion = () => regionAt(G.player.pos.x, G.player.pos.z);
 const queueSlots = [];
 G.queueIndex = (npc) => {
   let i = queueSlots.indexOf(npc);
@@ -88,6 +97,7 @@ G.leaveQueue = (npc) => { const i = queueSlots.indexOf(npc); if (i >= 0) queueSl
 G.nearestFire = (x, z) => {
   let best = null, bd = 1e9;
   for (const i of G.fire.burning) {
+    if (i % W > 63) continue; // firefighters don't do roofs or basements
     const cx = (i % W) + 0.5, cz = Math.floor(i / W) + 0.5;
     const d = (cx - x) ** 2 + (cz - z) ** 2;
     if (d < bd) { bd = d; best = { x: cx, z: cz }; }
@@ -141,6 +151,77 @@ G.onImpact = (p, speed) => {
   }
 };
 
+// ---------------------------------------------------------------- hiding
+function hide(spot) {
+  const P = G.player;
+  if (P.pushing) releaseBed(false);
+  P.hidden = spot;
+  if (P.held) P.held.mesh.visible = false;
+  G.hideT = 0;
+  G.sneezeT = rand(25, 55);
+  G.stats.hides++;
+  $('hide-overlay').dataset.kind = spot.overlay;
+  $('hide-overlay').hidden = false;
+  toast(spot.note);
+}
+function unhide(msg) {
+  const P = G.player, h = P.hidden;
+  if (!h) return;
+  P.hidden = null;
+  P.pos.x = h.exit.x; P.pos.z = h.exit.z;
+  if (P.held) P.held.mesh.visible = true;
+  $('hide-overlay').hidden = true;
+  if (msg) toast(msg);
+}
+G.foundPlayer = (npc) => {
+  const h = G.player.hidden;
+  if (!h) return;
+  G.stats.timesFound++;
+  G.stats.foundIn = h.label;
+  unhide(`${npc.name} found you ${h.label}.`);
+  npc.say(pick(LINES.found), 3, true);
+  sfx.ow();
+  if (npc.role === 'security') { G.caught(npc); return; }
+  npc.setState(npc.role === 'consultant' || npc.role === 'dms' ? 'stalk' : npc.role === 'registrar' || npc.role === 'surgreg' ? 'chase' : 'idle', 1);
+};
+G.onKnock = (npc) => {
+  G.stats.knocks++;
+  if (Math.hypot(G.player.pos.x - npc.pos.x, G.player.pos.z - npc.pos.y) < 14) sfx.thud(0.5);
+};
+G.startRumor = (w) => {
+  G.rumor = { id: w.id, text: w.rumor, t: 150 };
+  G.rumorT = 3;
+  G.stats.rumors++;
+};
+
+function useLift() {
+  G.mode = 'form';
+  G.player.unlock();
+  $('lift-modal').hidden = false;
+}
+function rideLift(floor) {
+  $('lift-modal').hidden = true;
+  const P = G.player;
+  const here = G.playerRegion();
+  if (!floor || floor === here) { resumePlay(); if (floor === here) toast('The lift doors open. You are exactly where you started.'); return; }
+  if (P.pushing) releaseBed(false);
+  const L = G.world.lifts[floor];
+  G.stats.liftRides++;
+  G.lastSeen = { x: 61.2, z: 10.5, region: 'main', lift: here === 'main' };
+  const fade = $('fade');
+  $('fade-text').textContent = pick(['*lift music*', 'Ding. The lift smells faintly of hot chips.', 'The lift stops at every floor. Nobody gets on.', '*a smooth jazz rendition of Wonderwall*']);
+  fade.hidden = false;
+  setTimeout(() => {
+    P.pos.x = L.x; P.pos.z = L.z; P.yaw = L.yaw; P.y = 0; P.vy = 0;
+    if (P.held) { P.held.pos.set(L.x, 1.2, L.z); }
+    fade.hidden = true;
+    sfx.ding();
+    toast({ roof: 'Roof. The helipad. The wind. The city asleep below.', basement: 'Basement. It\'s cold and something is humming.', main: 'Ground floor. The ED noise washes back over you.' }[floor]);
+    resumePlay();
+  }, 1300);
+}
+for (const b of document.querySelectorAll('[data-floor]')) b.onclick = () => rideLift(b.dataset.floor);
+
 // ---------------------------------------------------------------- HUD
 const toastsEl = $('toasts');
 function toast(text, kind = '') {
@@ -167,7 +248,7 @@ function updateHud() {
   setText('clock', minutesToClock(G.time));
   const n = G.list();
   setText('wl-count', String(n));
-  const oldest = G.cases.filter((c) => !c.reported).reduce((m, c) => Math.max(m, G.time - c.arrived), 0);
+  const oldest = G.openCases().reduce((m, c) => Math.max(m, G.time - c.arrived), 0);
   setText('wl-oldest', n ? `oldest ${Math.floor(oldest / 60)}h ${String(Math.floor(oldest % 60)).padStart(2, '0')}m` : 'list clear');
   const lvl = n >= G.T.dms ? 4 : n >= G.T.consultant ? 3 : n >= G.T.chase ? 2 : n >= G.T.queue ? 1 : 0;
   $('worklist').dataset.level = lvl;
@@ -188,7 +269,7 @@ function updateHud() {
 
 function drawTVs() {
   const n = G.list();
-  const oldest = G.cases.filter((c) => !c.reported).reduce((m, c) => Math.max(m, G.time - c.arrived), 0);
+  const oldest = G.openCases().reduce((m, c) => Math.max(m, G.time - c.arrived), 0);
   const g = G.world.tvCanvas.getContext('2d');
   g.fillStyle = '#081018'; g.fillRect(0, 0, 512, 288);
   g.fillStyle = '#7fd3ff'; g.font = 'bold 28px monospace'; g.fillText('RADIOLOGY WORKLIST', 24, 44);
@@ -276,6 +357,18 @@ function populate() {
   for (let i = 0; i < 4; i++) spawnNpc({ role: 'registrar', name: REG_NAMES[i], x: rand(3, 18), z: rand(14.5, 19), home: { zone: i % 2 ? 'resus' : 'corridor' } });
   spawnNpc({ role: 'security', name: 'Big Steve', x: 23.5, z: 16, home: { zone: 'waiting' } });
   spawnNpc({ role: 'cat', name: 'Dr Whiskers', x: 20, z: 11, home: { zone: 'corridor' } });
+  spawnNpc({ role: 'chaplain', name: 'Reverend Pat', x: 48, z: 21.5, home: { zone: 'chapel' } });
+  spawnNpc({ role: 'cleaner', name: 'Marguerite (Cleaner)', x: 50, z: 10.5, home: { zone: 'corridor' } });
+  // East wing, roof, basement props
+  for (const g of G.world.gelSpots) P.spawn('gel', g.x, null, g.z);
+  P.spawn('box', 51.5, null, 2); P.spawn('box', 52.6, null, 4.2); P.spawn('paper', 51.8, null, 5);
+  for (const [x, z] of G.world.cafeChairs) P.spawn('chair', x, null, z);
+  P.spawn('coffee', 58, 0.8, 16); P.spawn('bin', 62.3, null, 21.5);
+  P.spawn('paper', 60.5, 0.55, 2.2); P.spawn('coffee', 62.4, 0.62, 4.6);
+  P.spawn('paper', 46.5, null, 16.3); P.spawn('bin', 44.6, null, 14.6);
+  P.spawn('chair', 76, null, 4); P.spawn('box', 88, null, 10); P.spawn('bin', 70, null, 11);
+  for (let i = 0; i < 6; i++) P.spawn('paper', rand(80, 93), null, rand(18.2, 19.6));
+  P.spawn('o2', 67.5, null, 27.8); P.spawn('box', 75, null, 21.4); P.spawn('chair', 90, null, 27);
 }
 
 function registrars() { return G.npcs.filter((n) => n.role === 'registrar' || n.role === 'surgreg'); }
@@ -353,6 +446,7 @@ function nearInteractable() {
 }
 
 function currentPrompt() {
+  if (G.player.hidden) return '';
   if (G.player.pushing) return 'E — let go of the bed';
   const t = lookTarget();
   if (t?.npc) {
@@ -362,7 +456,7 @@ function currentPrompt() {
     return `${n.name} · ${n.title}\n${verb}${!G.player.held && n.state !== 'lie' ? ' · LMB shove' : ''}`;
   }
   const it = nearInteractable();
-  if (it) return `E — ${it.label}`;
+  if (it) return `E — ${it.id === 'door' ? (G.world.doorLocked ? 'Unlock the reading-room door' : 'Lock the reading-room door') : it.label}`;
   const bed = lookBed();
   if (bed && !G.player.held && !(t?.prop && !t.prop.T.bed && t.dist < 1.2)) return `${bed.T.name}${bed.rider ? ` (${bed.rider.name} aboard)` : ''}\nE — push it${t?.prop && !t.prop.T.bed ? ` · LMB pick up ${t.prop.T.name.toLowerCase()}` : ''}`;
   if (t?.prop) {
@@ -376,10 +470,12 @@ function currentPrompt() {
 
 function interact() {
   const P = G.player;
+  if (P.hidden) { unhide('You come out of hiding.'); return; }
   if (P.pushing) { releaseBed(false); return; }
   const t = lookTarget();
   if (t?.npc) { talk(t.npc); return; }
   const it = nearInteractable();
+  if (it?.hide) { hide(it.hide); return; }
   if (it) { useStation(it.id); return; }
   const bed = lookBed();
   if (bed) {
@@ -432,6 +528,9 @@ function talk(n) {
     case 'dms': n.say('Let\'s schedule a meeting about this meeting.', 3); break;
     case 'security': n.say(G.wanted > 0 ? 'Oh, it\'s YOU.' : 'Keep your nose clean, doc.', 3); if (G.wanted > 0) G.caught(n); break;
     case 'firefighter': n.say('Stand back, doc!', 2); break;
+    case 'chaplain': n.say(pick(LINES.chaplain), 3); if (G.list() > 10) toast('The chaplain offers to pray for your worklist.'); break;
+    case 'cleaner': n.say(pick(LINES.cleaner), 3); break;
+    case 'ghost': n.say(pick(LINES.ghost), 3.5); G.stats.ghostChats++; if (G.stats.ghostChats === 1) toast('The ghost passes through you. You feel a sudden urge to report something.'); break;
     case 'nic': n.say(G.playerCausedFire ? 'I KNOW it was you.' : pick(['Can you please just report the scans?', 'Resus is full. Do your job.', 'Do NOT touch my whiteboard.']), 3); break;
     case 'nurse': n.say(pick(['Can you not? I\'m busy.', 'Are you... lost?', 'The radiologist! In the wild!', 'Your pager\'s going off, by the way.']), 3); break;
     case 'registrar': case 'surgreg': n.say(pick(['All good for now!', 'Thanks for earlier!', 'Nothing pending, promise.']), 2.5); break;
@@ -458,20 +557,32 @@ function openForm(c, reg) {
     },
     onBounce: () => {
       G.stats.formsBounced++;
-      if (c.redFlags.length) {
-        G.stats.goodCatches++;
-        reg.say('Oh. Good catch. I\'ll fix it.', 3);
-        toast(`Good catch: ${c.redFlags[0]}. Form bounced.`, 'good');
-      } else {
-        reg.say(pick(LINES.bounce), 3);
-        reg.anger++;
-        toast('Form bounced. The registrar will be back, angrier.');
-      }
-      c.snoozeUntil = G.time + 30;
-      reg.cooldown = 30;
-      G.leaveQueue(reg);
-      reg.think();
-      resumePlay();
+      G.mode = 'form';
+      const accept = (forced) => {
+        c.accepted = true;
+        c.snoozeUntil = G.time + 40;
+        reg.say(forced ? pick(['Told you.', 'Thank you. Finally.', '*smug face*']) : pick(LINES.thanks), 2.5);
+        reg.cooldown = 45;
+        G.leaveQueue(reg);
+        reg.think();
+        toast(`You're doing ${c.patient}'s ${c.study}. It's on you now.`);
+        resumePlay();
+      };
+      startArgument(G, c, reg, {
+        onWin: (kind) => {
+          c.cancelled = kind;
+          reg.say(kind === 'wild' ? 'I need to go tell everyone.' : pick(LINES.bounce), 3);
+          reg.anger++;
+          reg.cooldown = 40;
+          G.leaveQueue(reg);
+          reg.think();
+          if (Math.random() < 0.4) G.rerequests.push({ c, at: G.time + rand(40, 90) });
+          toast(`${c.study} for ${c.patient} withdrawn. The list shrinks by one.`, 'good');
+          resumePlay();
+        },
+        onLose: () => accept(true),
+        onAccept: () => accept(false),
+      });
     },
     onNod: () => {
       reg.say('...so is that a yes?', 2.5);
@@ -497,7 +608,7 @@ function useStation(id) {
       if (G.phoneRinging) {
         G.phoneRinging = false;
         G.phoneQuiet = 45;
-        toast(`"Hi, it's ${pick(REG_NAMES)}. Just wondering about ${pick(G.cases.filter((c) => !c.reported))?.patient || 'nothing'}..." You hang up.`);
+        toast(`"Hi, it's ${pick(REG_NAMES)}. Just wondering about ${pick(G.openCases())?.patient || 'nothing'}..." You hang up.`);
       } else toast('Dial tone. You consider calling your mum. You don\'t.');
       break;
     case 'couch': {
@@ -578,6 +689,74 @@ function useStation(id) {
       } else toast('You scan an empty table. That\'s 1 mSv of nothing.');
       break;
     }
+    case 'door': {
+      const on = !G.world.doorLocked;
+      G.world.setDoorLocked(on);
+      sfx.click();
+      toast(on ? 'You lock the reading-room door. Registrars will have to knock. (Forms still fit under it.)' : 'You unlock the door. Brace yourself.');
+      break;
+    }
+    case 'lift':
+      useLift();
+      break;
+    case 'mirror':
+      toast(G.sootT > 0 ? 'You are covered in soot. Your eyebrows are gone.' : G.list() > 20 ? 'You look like someone with ' + G.list() + ' unreported scans.' : pick(['You look like you\'ve been awake for 19 hours. Because you have.', 'Lanyard: crooked. Soul: tired.', 'You practise saying "no acute abnormality" in the mirror.']));
+      break;
+    case 'bed': {
+      G.stats.naps++;
+      const fade = $('fade');
+      $('fade-text').textContent = 'You sleep in the on-call bed for 90 glorious minutes.';
+      fade.hidden = false;
+      G.time += 90;
+      const n = 8;
+      for (let i = 0; i < n; i++) addCase({ silent: true });
+      setTimeout(() => { fade.hidden = true; toast(`You wake up to ${n} new requests, ${n + 6} pages and a registrar asleep outside the door.`, 'bad'); G.stats.pages += n + 6; }, 1800);
+      break;
+    }
+    case 'candles': {
+      G.candlesLit = (G.candlesLit || 0) + 1;
+      const c = G.world.candles;
+      if (G.candlesLit <= c.length) { c[G.candlesLit - 1].visible = true; sfx.flick(); toast(G.candlesLit === 1 ? 'You light a candle for your worklist.' : G.candlesLit === c.length ? 'All the candles are lit. It\'s very atmospheric.' : 'Another candle. For the registrars.'); }
+      else { toast('You reach for another candle and knock the whole stand over.', 'bad'); for (const f of c) f.visible = false; G.candlesLit = 0; igniteByPlayer(45, 23.4, 0.7); }
+      break;
+    }
+    case 'espresso':
+      giveItem('coffee');
+      toast('You hit the closed coffee machine. It dispenses one perfect espresso. Nobody must know.');
+      break;
+    case 'heli':
+      if (G.heliT > 0) { toast('The rotor is already going. You press more buttons. A light comes on that says "NO".'); return; }
+      G.heliT = 16;
+      G.stats.helis++;
+      toast('You press buttons in the helicopter. The rotor starts spinning. You do not know how to stop it.', 'bad');
+      break;
+    case 'boiler': {
+      G.boilerN = (G.boilerN || 0) + 1;
+      G.boilerT = 30;
+      sfx.clang();
+      G.world.gauge.rotation.z = -G.boilerN * 0.9;
+      if (G.boilerN < 3) toast(G.boilerN === 1 ? 'You crank the boiler. The needle rises. It feels nice and warm.' : 'The needle is in the red. The boiler is making a noise like a whale.');
+      else {
+        G.boilerN = 0;
+        G.world.gauge.rotation.z = 0;
+        G.stats.boilers++;
+        sfx.whoomph(); sfx.hiss();
+        for (let i = 0; i < 250; i++) G.smokeFx.emit(69.5 + rand(-1, 1), rand(0.5, 2.5), 26.5 + rand(-1, 1), rand(-3, 3), rand(0, 2), rand(-3, 3), rand(2, 4), 0.8, 3, 0.9, 0.9, 0.92, 0.6);
+        igniteByPlayer(69.5, 25.3, 0.9); igniteByPlayer(72, 26.5, 0.7);
+        toast('The boiler bursts. Steam everywhere. Also fire. The morning maintenance team will be thrilled.', 'bad');
+      }
+      break;
+    }
+    case 'oldbox':
+      if (G.stats.ancient) { toast('The old lightbox flickers. There\'s nothing else on it.'); return; }
+      G.stats.ancient = 1;
+      {
+        const c = addCase({ silent: true, forced: { modality: 'chest', path: pick(['ptx', 'mass', 'consolidation', 'normal']) }, study: 'CT Chest (1987, never reported)', location: 'Basement (lost)', clinical: 'Handwritten in fountain pen: "?something. Pls report. Urgent." Dated 14/3/1987.' });
+        c.arrived = G.time - 39 * 365 * 24 * 60;
+        c.patient = 'UNKNOWN, 1987';
+      }
+      toast('You switch on the old lightbox. A film from 1987 is still clipped to it. It was never reported. It\'s on your list now.', 'bad');
+      break;
     case 'quench':
       if (G.quenched) { toast('Already quenched. The physicist is still crying.'); return; }
       G.quenched = true;
@@ -613,6 +792,7 @@ window.addEventListener('keydown', (e) => {
 
 function handleMouse(dt) {
   const P = G.player;
+  if (P.hidden) { P.mouse.leftPressed = false; G.jetpack = false; return; }
   if (P.mouse.leftPressed) {
     P.mouse.leftPressed = false;
     if (P.held) {
@@ -710,6 +890,82 @@ let consultant = null, dms = null;
 
 function updateSystems(dt) {
   const n = G.list();
+  const P0 = G.player;
+  if (!P0.hidden) G.lastSeen = { x: P0.pos.x, z: P0.pos.z, region: G.playerRegion(), lift: false };
+  // Hiding timers
+  if (P0.hidden) {
+    G.hideT += dt;
+    const h = P0.hidden;
+    const searchers = G.npcs.filter((x) => x.state === 'search' || x.state === 'knock').length;
+    setText('hide-text', `Hiding ${h.label} · ${searchers ? `${searchers} searching for you` : 'nobody nearby'} · E to come out`);
+    if (h.maxTime && G.hideT > h.maxTime) unhide('Too cold! You burst out of the fridge, covered in frost.');
+    G.sneezeT -= dt;
+    if (P0.hidden && G.sneezeT <= 0) {
+      G.sneezeT = rand(30, 60);
+      sfx.ow();
+      toast('*ACHOO*', 'bad');
+      const near = G.npcs.find((x) => x.state === 'search' && x.region() === G.playerRegion() && Math.hypot(x.pos.x - h.x, x.pos.y - h.z) < 8);
+      if (near && Math.random() < 0.6) { near.say('Bless you! ...wait.', 2); G.foundPlayer(near); }
+    }
+  }
+  // Rumours from wild arguments
+  if (G.rumor) {
+    G.rumor.t -= dt;
+    G.rumorT -= dt;
+    if (G.rumorT <= 0) {
+      G.rumorT = rand(6, 11);
+      const gossip = G.npcs.filter((x) => ['nurse', 'registrar', 'surgreg', 'nic', 'patient', 'cleaner'].includes(x.role) && x.sayT <= 0 && x.distToPlayer() < 14);
+      const who = pick(gossip);
+      if (who) who.say('Did you hear? ' + G.rumor.text, 3.5);
+    }
+    if (G.rumor.t <= 0) G.rumor = null;
+  }
+  // Withdrawn requests sometimes come back
+  for (const r of G.rerequests.slice()) {
+    if (G.time < r.at) continue;
+    G.rerequests.splice(G.rerequests.indexOf(r), 1);
+    const nc = addCase({ silent: true, requester: r.c.requester, forced: { modality: r.c.modality, path: r.c.path }, location: r.c.location });
+    nc.patient = r.c.patient;
+    nc.clinical = 'RE-REQUEST. ' + r.c.clinical + ' Now "much worse".';
+    toast(`${r.c.requester} is back with a re-request for ${r.c.patient}. Now "much worse".`, 'bad');
+  }
+  // Ghost appears at 3am
+  if (G.time >= 300 && !G.ghost) {
+    G.ghost = spawnNpc({ role: 'ghost', name: 'Mr Nobody (1987)', x: 80, z: 22.5, home: { zone: 'basement' } });
+  }
+  // Helicopter rotor wash
+  if (G.heliT > 0) {
+    G.heliT -= dt;
+    const spin = Math.min(1, G.heliT / 3, (16 - G.heliT) / 3 + 0.2);
+    G.world.rotor.rotation.y += dt * 30 * spin;
+    const cx = 81, cz = 7;
+    for (const p of G.props.list) {
+      if (p.held || p.stuck || p.pos.x < 64.5 || p.pos.z > 15) continue;
+      const dx = p.pos.x - cx, dz = p.pos.z - cz, d = Math.hypot(dx, dz) || 1;
+      if (d > 12) continue;
+      const f = (40 * spin) / Math.max(2, d) / Math.max(1, p.T.mass / 3);
+      p.vel.x += (dx / d) * f * dt; p.vel.z += (dz / d) * f * dt; p.vel.y += f * 0.4 * dt;
+    }
+    const P = G.player;
+    if (G.playerRegion() === 'roof' && !P.hidden) {
+      const dx = P.pos.x - cx, dz = P.pos.z - cz, d = Math.hypot(dx, dz) || 1;
+      if (d < 10) { P.vel.x += (dx / d) * 18 * spin * dt / Math.max(1, d / 3); P.vel.z += (dz / d) * 18 * spin * dt / Math.max(1, d / 3); }
+    }
+    if (Math.random() < 0.1) sfx.whoosh();
+  }
+  if (G.boilerT > 0) { G.boilerT -= dt; if (G.boilerT <= 0) { G.boilerN = 0; G.world.gauge.rotation.z = 0; } }
+  G.world.beacon.intensity = Math.sin(performance.now() / 300) > 0.6 ? 6 : 0;
+  // Falling off the roof
+  if (G.player.y < -6) {
+    G.stats.roofFalls++;
+    const P = G.player;
+    const fade = $('fade');
+    $('fade-text').textContent = 'You fell off the roof. You wake up in Resus with a mild headache and a CT brain request with your name on it.';
+    fade.hidden = false;
+    P.y = 0; P.vy = 0; P.pos.x = 10; P.pos.z = 18; P.yaw = 0;
+    addCase({ silent: true, forced: { modality: 'head', path: 'normal' }, study: 'CT Brain (you)', location: 'Resus 3', clinical: 'Radiologist fell off the roof. Somehow fine. Insists on reporting own scan.' });
+    setTimeout(() => (fade.hidden = true), 2500);
+  }
   // New requests
   caseT -= dt;
   if (caseT <= 0) {
@@ -730,7 +986,7 @@ function updateSystems(dt) {
     pageT -= dt;
     if (pageT <= 0) {
       pageT = rand(22, 45) * (n >= 20 ? 0.6 : 1);
-      const c = pick(G.cases.filter((x) => !x.reported));
+      const c = pick(G.openCases());
       page(`${c.requester}: "Any update on ${c.patient.split(',')[0]}'s ${c.study.split(' ')[1] || 'scan'}?"`);
     }
   }
@@ -895,7 +1151,21 @@ function updateSystems(dt) {
   }
   // Props: burning, O2 rockets, hitting people
   for (const p of G.props.list.slice()) {
+    if (p.pos.y < -8) {
+      G.stats.roofThrows++;
+      if (G.player.held === p) G.player.held = null;
+      G.props.remove(p);
+      toast(pick([`The ${p.T.name.toLowerCase()} falls six storeys. A car alarm goes off.`, `The ${p.T.name.toLowerCase()} disappears into the night. Someone below shouts.`, 'A distant crunch. You decide not to look.']));
+      continue;
+    }
     const I = G.fire.at(p.pos.x, p.pos.z);
+    if (p.type === 'gel' && I > 0.2 && !p.held) {
+      sfx.whoomph();
+      for (let dx = -1; dx <= 1; dx++) for (let dz = -1; dz <= 1; dz++) { G.fire.addFuel(p.pos.x + dx, p.pos.z + dz, 1.2); G.fire.ignite(p.pos.x + dx, p.pos.z + dz, 0.9); }
+      toast('The hand sanitiser goes WHOOMPH. It is 70% alcohol, after all.', 'bad');
+      G.props.remove(p);
+      continue;
+    }
     if (p.fuel > 0 && I > 0.3 && !p.held) {
       p.fuel -= 0.12 * dt;
       G.fire.addFuel(p.pos.x, p.pos.z, 0.3 * dt);
@@ -1053,12 +1323,19 @@ function endShift() {
   G.player.unlock();
   setAlarm(false);
   G.world.alarmLight.intensity = 0;
-  for (const id of ['alarm-vignette', 'fire-overlay', 'soot', 'help', 'paused']) $(id).hidden = true;
+  for (const id of ['alarm-vignette', 'fire-overlay', 'soot', 'help', 'paused', 'hide-overlay', 'lift-modal', 'argue-modal']) $(id).hidden = true;
   const s = G.stats;
   const unrep = G.list();
-  const chaos = s.fires * 3 + s.hits + s.bedsLaunched * 2 + s.npcsIgnited * 4 + s.mriStuck * 2 + s.quenches * 10 + s.rockets * 5 + s.caught * 3 + s.ctJokes * 2 + s.sandwiches;
-  const clinical = s.correct * 10 + s.nailed * 5 - s.wrong.length * 8 - unrep * 5 + s.goodCatches * 4;
+  const argued = G.cases.filter((c) => c.cancelled && c.path !== 'normal');
+  const chaos = s.wildWins * 4 + s.roofFalls * 5 + s.boilers * 6 + s.helis * 3 + s.roofThrows + s.fires * 3 + s.hits + s.bedsLaunched * 2 + s.npcsIgnited * 4 + s.mriStuck * 2 + s.quenches * 10 + s.rockets * 5 + s.caught * 3 + s.ctJokes * 2 + s.sandwiches;
+  const clinical = s.correct * 10 + s.nailed * 5 - s.wrong.length * 8 - unrep * 5 + s.goodCatches * 4 - argued.length * 6;
   const headlines = [];
+  if (s.wildWins) headlines.push(`RADIOLOGIST TELLS ED: ${(s.wildUsed || '').replace(/\(.*?\)/g, '').replace(/"/g, '').trim().replace(/\.$/, '').toUpperCase()}`);
+  if (s.roofFalls) headlines.push('RADIOLOGIST FLIES OFF ROOF ON FIRE EXTINGUISHER, REPORTS OWN CT');
+  if (s.timesFound) headlines.push(`RADIOLOGIST FOUND HIDING ${String(s.foundIn).toUpperCase()}`);
+  else if (s.hides >= 3) headlines.push('ON-CALL RADIOLOGIST "IMPOSSIBLE TO FIND", SAY REGISTRARS');
+  if (s.boilers) headlines.push('BASEMENT BOILER EXPLODES; "SOMEONE CRANKED IT", SAYS MAINTENANCE');
+  if (s.ancient) headlines.push('1987 SCAN FINALLY ON A WORKLIST');
   if (s.quenches) headlines.push('MRI QUENCHED AT 3AM: "$1.2 MILLION OF HELIUM, GONE"');
   if (s.fires >= 3) headlines.push(`${s.fires} FIRES IN ONE NIGHT: MICROWAVE NOW BANNED HOSPITAL-WIDE`);
   else if (s.fires) headlines.push('FIRE IN ED. RADIOLOGIST "NOWHERE NEAR IT", SAYS RADIOLOGIST');
@@ -1079,11 +1356,13 @@ function endShift() {
     ['Forms bounced (good catches)', `${s.formsBounced} (${s.goodCatches})`], ['Fires started', s.fires], ['Fire alarms', s.alarms], ['People knocked over', s.hits],
     ['Beds launched', s.bedsLaunched], ['People set on fire', s.npcsIgnited], ['Items lost to the MRI', s.mriStuck], ['O2 rockets', s.rockets],
     ['Caught by security', s.caught], ['Sandwiches stolen', s.sandwiches], ['Cat pets', s.catPets], ['Naps', s.naps],
+    ['Arguments won / lost', `${s.argumentsWon} / ${s.argumentsLost}`], ['Wild arguments that worked', s.wildWins], ['Times hidden', s.hides], ['Times found hiding', s.timesFound],
+    ['Searches evaded', s.searchesEvaded], ['Knocks on your door', s.knocks], ['Lift rides', s.liftRides], ['Things thrown off the roof', s.roofThrows],
   ];
   $('m-stats').innerHTML = rows.map(([k, v]) => `<div><span>${k}</span><b>${v}</b></div>`).join('');
-  $('m-mm').innerHTML = s.wrong.length
-    ? s.wrong.slice(0, 8).map((c) => `<li><b>${c.patient}</b>, ${c.study}: you said "${FINDINGS[c.modality][c.finding]}". It was <b>${FINDINGS[c.modality][c.path]}</b>.</li>`).join('')
-    : '<li>No misses. Suspicious, but well done.</li>';
+  const mm = s.wrong.slice(0, 8).map((c) => `<li><b>${c.patient}</b>, ${c.study}: you said "${FINDINGS[c.modality][c.finding]}". It was <b>${FINDINGS[c.modality][c.path]}</b>.</li>`);
+  for (const c of argued.slice(0, 5)) mm.push(`<li><b>${c.patient}</b>, ${c.study}: you argued it out of existence${c.cancelled === 'wild' ? ' with a completely made-up reason' : ''}. It was <b>${FINDINGS[c.modality][c.path]}</b>.</li>`);
+  $('m-mm').innerHTML = mm.length ? mm.join('') : '<li>No misses. Suspicious, but well done.</li>';
   $('m-scores').textContent = `Clinical ${clinical} · Chaos ${chaos}`;
   $('morning').hidden = false;
   $('hud').hidden = true;
