@@ -11,6 +11,7 @@ import { Pacs } from './pacs.js';
 import { makeCase, FINDINGS } from './cases.js';
 import { showForm, hideForm, minutesToClock } from './form.js';
 import { initAudio, sfx, setAlarm, crackle, rain } from './audio.js';
+import { isTouchDevice, setupTouch } from './touch.js';
 
 const $ = (id) => document.getElementById(id);
 const pick = (a) => a[Math.floor(Math.random() * a.length)];
@@ -1007,7 +1008,7 @@ function updateSystems(dt) {
 function resumePlay() {
   G.mode = 'play';
   $('hud').classList.remove('dim');
-  G.player.lock();
+  if (!G.touch) G.player.lock();
 }
 G.closePacs = () => {
   G.pacs.close();
@@ -1016,12 +1017,13 @@ G.closePacs = () => {
 };
 
 document.addEventListener('pointerlockchange', () => {
-  if (!document.pointerLockElement && G.mode === 'play' && !G.player.freeLook) {
+  if (!document.pointerLockElement && G.mode === 'play' && !G.player.freeLook && !G.touch) {
     G.mode = 'paused';
     $('paused').hidden = false;
   }
 });
 document.addEventListener('pointerlockerror', () => {
+  if (G.touch) return;
   if (G.player.everLocked) {
     if (G.mode === 'play') { G.mode = 'paused'; $('paused').hidden = false; }
     return;
@@ -1042,7 +1044,9 @@ $('start-btn').addEventListener('click', () => {
   resumePlay();
   toast('Your shift has started. 3 requests are already waiting. Your pager is at 100%.');
 });
-canvas.addEventListener('click', () => { if (G.mode === 'play' && !G.player.locked && !G.player.freeLook) G.player.lock(); });
+canvas.addEventListener('click', () => { if (G.mode === 'play' && !G.touch && !G.player.locked && !G.player.freeLook) G.player.lock(); });
+G.touch = isTouchDevice();
+if (G.touch) setupTouch(G);
 
 function endShift() {
   G.mode = 'morning';

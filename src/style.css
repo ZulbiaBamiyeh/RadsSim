@@ -141,7 +141,15 @@ button:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }
 #pacs-markhint { font-size: 12px; }
 #pacs-error { position: absolute; inset: 44px 0 0; background: #1537a8; display: grid; place-items: center; color: #fff; font-size: 20px; }
 #pacs-error b { font-size: 90px; font-weight: 400; }
-@media (max-width: 900px) { .pacs-body { grid-template-columns: 1fr; overflow: auto; } .pacs-canvas-wrap { height: auto; width: 100%; } #pacs-view { height: auto; width: calc(100% - 28px); } }
+@media (max-width: 900px) and (min-height: 521px) {
+  .pacs-body { display: flex; flex-direction: column; overflow: auto; }
+  .pacs-viewer { order: -1; flex: none; }
+  .pacs-list { flex: none; max-height: 34vh; border-right: 0; border-top: 1px solid var(--line); }
+  .pacs-report { flex: none; overflow: visible; border-left: 0; border-top: 1px solid var(--line); }
+  .pacs-canvas-wrap { height: auto; width: 100%; aspect-ratio: auto; }
+  #pacs-view { height: auto; width: calc(100% - 28px); }
+  .pacs-bar { flex-wrap: wrap; }
+}
 
 /* ---------------- PAPER FORM ---------------- */
 #form-modal { position: fixed; inset: 0; background: rgba(5,8,12,.75); z-index: 35; display: grid; place-items: center; padding: 16px; overflow: auto; }
@@ -183,3 +191,75 @@ button:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }
 .grade-stamp small { letter-spacing: .12em; font-size: 11px; }
 @media (max-width: 760px) { .news-cols, #m-stats { grid-template-columns: 1fr; } }
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+
+/* ---------------- TOUCH CONTROLS ---------------- */
+.touch-only { display: none; }
+body.touch .touch-only { display: block; }
+body.touch #help-tip { display: none; }
+body.touch #held-wrap { top: 86px; bottom: auto; }
+body.touch #toasts { top: 120px; bottom: auto; right: 12px; max-width: min(360px, 45vw); }
+body.touch .toast { font-size: 13px; padding: 5px 10px; }
+body.touch #worklist { min-width: 0; padding: 6px 12px 8px; }
+body.touch #wl-count { font-size: 28px; }
+#touch { position: fixed; inset: 0; z-index: 10; touch-action: none; -webkit-user-select: none; user-select: none; }
+#t-look { position: absolute; inset: 0; touch-action: none; }
+#t-stick { position: absolute; left: calc(24px + env(safe-area-inset-left, 0px)); bottom: calc(24px + env(safe-area-inset-bottom, 0px)); width: 150px; height: 150px; border-radius: 50%; background: rgba(10,16,24,.35); border: 2px solid rgba(255,255,255,.25); touch-action: none; }
+#t-knob { position: absolute; left: 50%; top: 50%; width: 64px; height: 64px; margin: -32px 0 0 -32px; border-radius: 50%; background: rgba(230,238,246,.55); border: 2px solid rgba(255,255,255,.7); pointer-events: none; }
+#t-buttons { position: absolute; right: calc(20px + env(safe-area-inset-right, 0px)); bottom: calc(20px + env(safe-area-inset-bottom, 0px)); width: 0; height: 0; --b: 70px; --g: 12px; }
+#t-buttons .t-btn { position: absolute; width: var(--b); height: var(--b); }
+#t-grab { right: 0; bottom: 0; }
+#t-use { right: calc(var(--b) + var(--g)); bottom: 0; }
+#t-jump { right: 0; bottom: calc(var(--b) + var(--g)); }
+#t-item { right: calc(var(--b) + var(--g)); bottom: calc(var(--b) + var(--g)); }
+#t-drop { right: calc(2 * (var(--b) + var(--g))); bottom: 0; }
+.t-btn { touch-action: none; border-radius: 50%; border: 2px solid rgba(255,255,255,.45); background: rgba(10,16,24,.55); color: #fff; font: 700 15px var(--f-sign); display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1; -webkit-tap-highlight-color: transparent; }
+.t-btn small { font-size: 11px; font-weight: 400; margin-top: 2px; opacity: .8; }
+.t-btn.big { background: rgba(176,24,24,.7); border-color: rgba(255,160,160,.7); font-size: 17px; }
+.t-btn.on { background: rgba(127,211,255,.6); }
+.t-btn.small { position: absolute; top: 14px; right: 16px; width: 40px; height: 40px; font-size: 18px; }
+body.touch #wanted { top: 62px; }
+@media (max-height: 420px) { #t-stick { width: 120px; height: 120px; } #t-buttons { --b: 58px; --g: 10px; } }
+
+/* ---------------- SHORT / LANDSCAPE PHONE ---------------- */
+@media (max-height: 520px) {
+  #start { padding: 8px; place-items: center; }
+  .start-card { grid-template-columns: 1fr 1fr; gap: 20px; padding: 16px 20px; }
+  #start h1 { font-size: 44px; margin: 6px 0 8px; }
+  #start h1::after { height: 5px; margin-top: 8px; }
+  .lede { font-size: 14px; margin: 6px 0; }
+  #start-btn { padding: 10px 20px; font-size: 16px; }
+  .fine { font-size: 11px; margin: 6px 0 0; }
+  .pager { padding: 10px; }
+  .pager-screen { font-size: 12px; padding: 8px 10px; }
+  .howto { font-size: 13px; gap: 6px; margin-top: 10px; }
+  #clock-wrap { top: 8px; left: 10px; padding: 2px 8px 4px; }
+  #clock { font-size: 20px; }
+  #worklist { top: 8px; }
+  #wl-status { font-size: 12px; }
+  body.touch #held-wrap { top: 64px; }
+  body.touch #toasts { top: 92px; }
+  #prompt { font-size: 14px; }
+}
+/* PACS on a landscape phone: keep three columns, shrink the chrome, fit the image to the height */
+@media (max-height: 520px) and (orientation: landscape) {
+  #pacs { font-size: 11px; }
+  .pacs-bar { padding: 4px 8px; gap: 6px; flex-wrap: nowrap; }
+  .brand small { display: none; }
+  .brand { font-size: 12px; }
+  .pacs-tools { gap: 3px; flex-wrap: nowrap; overflow-x: auto; }
+  .pacs-tools .sep { width: 4px; }
+  .pacs-bar button, .pacs-report button, .pacs-list button.danger { padding: 5px 7px; font-size: 11px; white-space: nowrap; }
+  .pacs-body { grid-template-columns: 170px 1fr 210px; overflow: hidden; }
+  .pacs-list, .pacs-report { padding: 6px; }
+  .pacs-row { font-size: 10px; padding: 4px 6px; }
+  .pacs-viewer { padding: 4px; }
+  .pacs-canvas-wrap { height: calc(100vh - 44px); width: auto; }
+  #pacs-view { height: 100%; width: auto; max-width: calc(100% - 28px); }
+  .pacs-help { display: none; }
+  .finding { padding: 4px 6px; }
+  .hand-sm { font-size: 15px; }
+  #pacs-req p { margin: 2px 0; }
+}
+@media (max-width: 900px) and (orientation: portrait) {
+  .pacs-tools { justify-content: flex-start; }
+}

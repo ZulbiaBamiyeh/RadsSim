@@ -69,13 +69,15 @@ export class Player {
       if (k.has('KeyS') || k.has('ArrowDown')) mz -= 1;
       if (k.has('KeyA') || k.has('ArrowLeft')) mx -= 1;
       if (k.has('KeyD') || k.has('ArrowRight')) mx += 1;
+      if (this.touchMove) { mx += this.touchMove.x; mz += this.touchMove.y; }
     }
     const f = this.forward();
     const rx = -f.z, rz = f.x;
-    let speed = k.has('ShiftLeft') || k.has('ShiftRight') ? 6.2 : 3.4;
+    const touchSprint = this.touchMove && Math.hypot(this.touchMove.x, this.touchMove.y) > 0.92;
+    let speed = k.has('ShiftLeft') || k.has('ShiftRight') || touchSprint ? 6.2 : 3.4;
     if (this.onFire > 0) speed *= 1.35;
     if (this.pushing) speed *= this.pushing.rider ? 0.85 : 0.95;
-    const len = Math.hypot(mx, mz) || 1;
+    const len = Math.max(1, Math.hypot(mx, mz)); // analog stick below full tilt walks slower
     const tx = ((f.x * mz + rx * mx) / len) * speed, tz = ((f.z * mz + rz * mx) / len) * speed;
     const acc = this.y > groundAt(this.pos.x, this.pos.z, this.y) + 0.01 ? 2 : 12;
     this.vel.x += (tx - this.vel.x) * Math.min(1, acc * dt);

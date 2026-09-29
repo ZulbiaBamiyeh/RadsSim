@@ -25,6 +25,11 @@ It works best in a desktop browser with a mouse and keyboard. Click the view to 
 | H | Controls overlay |
 | L / T | Cheats: +5 requests / skip an hour |
 
+On a phone or tablet, on-screen controls appear automatically:
+- **Moving and looking:** the left stick moves you (push it all the way to run), and dragging anywhere else looks around.
+- **Buttons:** **Grab/Throw/Launch**, **E Use** (talk, take forms, push beds, use stations), an item button (**Spray/Flick/Eat/Drink**) that shows up when you're holding something, **Jump**, **Drop**, and **?** for help.
+- **Screen orientation:** landscape works best. PACS has a compact three-column layout for landscape phones and a stacked layout for portrait.
+
 At the PACS workstation:
 - Scroll wheel or drag to page through slices.
 - Right-drag adjusts window/level; 1–4 switch presets (soft tissue, lung, bone, brain).
@@ -79,5 +84,6 @@ At the PACS workstation:
 | `src/player.js` | First-person controller, carrying, bed pushing |
 | `src/particles.js` | GPU point particles for flames, smoke, spray and sprinklers |
 | `src/audio.js` | Synthesised sound effects (no audio files) |
+| `src/touch.js` | Phone/tablet controls: move stick, drag-to-look, action buttons |
 
 All patients, staff and hospital names are made up. Don't put real request forms or patient data into the repo.
