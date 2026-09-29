@@ -198,8 +198,10 @@ function useLift() {
   G.mode = 'form';
   G.player.unlock();
   $('lift-modal').hidden = false;
+  G.liftOpenedAt = performance.now();
 }
 function rideLift(floor) {
+  if (performance.now() - (G.liftOpenedAt || 0) < 450) return;
   $('lift-modal').hidden = true;
   const P = G.player;
   const here = G.playerRegion();

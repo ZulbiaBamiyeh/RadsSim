@@ -70,7 +70,8 @@ export function showForm(c, { mode = 'view', onAccept, onBounce, onNod, onClose 
     const b = document.createElement('button');
     b.textContent = label;
     b.className = cls;
-    b.onclick = () => { hideForm(); fn?.(); };
+    b.disabled = true;
+    b.onclick = () => { if (b.disabled) return; hideForm(); fn?.(); };
     actions.appendChild(b);
   };
   if (mode === 'registrar') {
@@ -81,6 +82,8 @@ export function showForm(c, { mode = 'view', onAccept, onBounce, onNod, onClose 
     btn('Close', 'ghost', onClose);
   }
   el.hidden = false;
+  // On phones the tap that opened the form can land on a button underneath it; ignore taps briefly.
+  setTimeout(() => { for (const b of actions.querySelectorAll('button')) b.disabled = false; }, 450);
 }
 
 export function hideForm() {

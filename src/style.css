@@ -319,3 +319,10 @@ body.touch #wanted { top: 62px; }
 #argue-opts button.ghost { background: transparent; }
 #argue-opts button.primary { flex: 0 0 auto; margin-left: auto; background: var(--amber); color: #1a1100; border-color: var(--amber); font-weight: 700; text-align: center; }
 @media (max-height: 520px) { .argue-line span { font-size: 13px; padding: 5px 9px; } #argue-opts button { font-size: 12px; padding: 6px 9px; flex-basis: 220px; } .argue-head { padding: 6px 12px; } #argue-log { min-height: 60px; } }
+#form-actions button:disabled, #argue-opts button:disabled { opacity: .45; cursor: default; }
+.argue-line.typing span { display: inline-flex; gap: 5px; align-items: center; padding: 11px 14px; }
+.argue-line.typing i { width: 7px; height: 7px; border-radius: 50%; background: #e6b8c8; opacity: .4; animation: typing 1s infinite; }
+.argue-line.cons.typing i { background: #a8c4e6; }
+.argue-line.typing i:nth-child(2) { animation-delay: .15s; }
+.argue-line.typing i:nth-child(3) { animation-delay: .3s; }
+@keyframes typing { 30% { opacity: 1; transform: translateY(-3px); } }
