@@ -1,4 +1,0 @@
-# Cloudflare Pages project config (static site built by Vite).
-name = "radssim"
-pages_build_output_dir = "dist"
-compatibility_date = "2026-09-01"
