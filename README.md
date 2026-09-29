@@ -13,6 +13,17 @@ npm run build:single # one self-contained HTML file in dist-single/
 
 It works best in a desktop browser with a mouse and keyboard. Click the view to capture the mouse. If mouse capture isn't available (some embedded frames), drag with the left button to look around.
 
+## Deploy to Cloudflare Pages
+
+**Option A: connect the repo in the Cloudflare dashboard.** No secrets are needed.
+1. In the Cloudflare dashboard, go to Workers & Pages → Create → Pages → Connect to Git, and pick this repo.
+2. Set the framework preset to **Vite** (or None), the build command to `npm run build`, and the output directory to `dist`.
+3. Pick the production branch, then Save and Deploy. It will be live at `https://<project-name>.pages.dev`.
+
+**Option B: GitHub Actions** (`.github/workflows/deploy-pages.yml`).
+1. Add the repository secrets `CLOUDFLARE_API_TOKEN` (a token with *Cloudflare Pages: Edit*) and `CLOUDFLARE_ACCOUNT_ID`.
+2. Every push then builds the game and deploys it to `https://radssim.pages.dev`. If that name is taken, change `--project-name` in the workflow.
+
 ## Controls
 
 | Key | Action |
