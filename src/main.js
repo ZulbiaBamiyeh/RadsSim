@@ -13,6 +13,7 @@ import { showForm, hideForm, minutesToClock } from './form.js';
 import { initAudio, sfx, setAlarm, crackle, rain } from './audio.js';
 import { isTouchDevice, setupTouch } from './touch.js';
 import { startArgument } from './argue.js';
+import { Scanning } from './scanning.js';
 import { openRiskman, reportAboutYou, RISKMAN_OUTCOMES } from './riskman.js';
 
 const $ = (id) => document.getElementById(id);
@@ -52,6 +53,7 @@ const G = {
     reported: 0, correct: 0, nailed: 0, wrong: [], speed: 0,
     fires: 0, alarms: 0, hits: 0, throws: 0, bedsLaunched: 0, bedCrashes: 0, npcsIgnited: 0, pages: 0, nags: 0,
     argumentsWon: 0, clinicalCalls: 0, kicks: 0, tackles: 0, zaps: 0, slips: 0, bonks: 0,
+    radiationDoses: 0, scanned: 0,
     riskmansFiled: 0, riskmansUpheld: 0, vexatious: 0, standDowns: 0, argumentsLost: 0, wildWins: 0, wildUsed: null, consultantCalls: 0, rumors: 0,
     hides: 0, timesFound: 0, searchesEvaded: 0, knocks: 0, liftRides: 0, roofFalls: 0, roofThrows: 0, boilers: 0, helis: 0, ghostChats: 0, ancient: 0, foundIn: null,
     caught: 0, sandwiches: 0, catPets: 0, quenches: 0, mriStuck: 0, rockets: 0, peakList: 0, formsBounced: 0, goodCatches: 0, naps: 0, selfIgnitions: 0, ctJokes: 0,
@@ -69,6 +71,7 @@ G.sprayFx = new Particles(scene, { max: 3000 });
 G.props = new Props(scene);
 G.player = new Player(camera, canvas);
 G.pacs = new Pacs(G);
+G.scan = new Scanning(G);
 
 const fireLights = [];
 for (let i = 0; i < 4; i++) {
@@ -78,7 +81,7 @@ for (let i = 0; i < 4; i++) {
 }
 
 // ---------------------------------------------------------------- helpers used by NPCs / props
-G.isOpen = (c) => !c.reported && !c.cancelled;
+G.isOpen = (c) => !c.reported && !c.cancelled && c.status !== 'toScan';
 G.openCases = () => G.cases.filter(G.isOpen);
 G.list = () => G.cases.reduce((n, c) => n + (G.isOpen(c) ? 1 : 0), 0);
 G.pendingFor = (npc) => G.cases.filter((c) => G.isOpen(c) && c.requester === npc.name && (!c.snoozeUntil || c.snoozeUntil < G.time));
@@ -273,6 +276,8 @@ function toast(text, kind = '') {
 }
 G.toast = toast;
 
+G.page = (t) => page(t);
+G.reportAboutYou = (from, cat, note) => { reportAboutYou(G, from, cat, note); toast(`${from} has filed a RiskMann about you.`, 'bad'); };
 function page(text) {
   G.stats.pages++;
   sfx.pager();
@@ -287,7 +292,8 @@ function updateHud() {
   const n = G.list();
   setText('wl-count', String(n));
   const oldest = G.openCases().reduce((m, c) => Math.max(m, G.time - c.arrived), 0);
-  setText('wl-oldest', n ? `oldest ${Math.floor(oldest / 60)}h ${String(Math.floor(oldest % 60)).padStart(2, '0')}m` : 'list clear');
+  const sq = G.scan.queued('ct') + G.scan.queued('mri') + G.scan.queued('xr');
+  setText('wl-oldest', (n ? `oldest ${Math.floor(oldest / 60)}h ${String(Math.floor(oldest % 60)).padStart(2, '0')}m` : 'list clear') + (sq ? ` · ${sq} being scanned` : ''));
   const lvl = n >= G.T.dms ? 4 : n >= G.T.consultant ? 3 : n >= G.T.chase ? 2 : n >= G.T.queue ? 1 : 0;
   $('worklist').dataset.level = lvl;
   setText('wl-status', ['Quiet. Suspiciously quiet.', 'Registrars are queuing at your door', 'Registrars are hunting you', 'The ED consultant is looking for you', 'The Director of Medical Services is here'][lvl]);
@@ -315,7 +321,7 @@ function drawTVs() {
   g.font = 'bold 110px monospace'; g.fillText(String(n), 24, 170);
   g.font = '24px monospace'; g.fillStyle = '#d6e6f2';
   g.fillText('UNREPORTED', 24 + String(n).length * 66 + 20, 150);
-  g.fillText(`Oldest: ${Math.floor(oldest / 60)}h ${Math.floor(oldest % 60)}m`, 24, 220);
+  g.fillText(`Oldest: ${Math.floor(oldest / 60)}h ${Math.floor(oldest % 60)}m   Queue CT ${G.scan.queued('ct')} · MRI ${G.scan.queued('mri')} · XR ${G.scan.queued('xr')}`, 24, 220);
   g.fillText(`On-call radiologist: ${G.player.pos.z < 8 && G.player.pos.x < 9 ? 'IN ROOM' : 'WHEREABOUTS UNKNOWN'}`, 24, 258);
   G.world.tvTex.needsUpdate = true;
   const w = G.world.waitCanvas.getContext('2d');
@@ -373,7 +379,7 @@ function populate() {
   P.spawn('o2', 1.6, null, 20.2); P.spawn('o2', 19.6, null, 19.6);
   P.spawn('defib', 1.5, 1.1, 17.9); P.spawn('defib', 12.5, 1.15, 15.9);
   P.spawn('bedpan', 4.5, null, 20.5); P.spawn('bedpan', 16.3, null, 21); P.spawn('bedpan', 46.6, null, 5.5);
-  P.spawn('bucket', 49.2, null, 11.9); P.spawn('bucket', 47.6, null, 6.3); P.spawn('bucket', 20.5, null, 23.8);
+  P.spawn('bucket', 49.2, null, 11.9); P.spawn('bucket', 54.8, null, 21.6); P.spawn('bucket', 20.5, null, 23.8);
   P.spawn('box', 9.5, 1.1, 15.9); P.spawn('paper', 10.6, 1.1, 15.8); P.spawn('paper', 12.1, 1.1, 16.1);
   P.spawn('bin', 14.2, null, 14.6);
   // Waiting
@@ -400,11 +406,15 @@ function populate() {
   spawnNpc({ role: 'cat', name: 'Dr Whiskers', x: 20, z: 11, home: { zone: 'corridor' } });
   spawnNpc({ role: 'chaplain', name: 'Reverend Pat', x: 48, z: 21.5, home: { zone: 'chapel' } });
   spawnNpc({ role: 'cleaner', name: 'Marguerite (Cleaner)', x: 50, z: 10.5, home: { zone: 'corridor' } });
+  for (const [id, name, x, z, zone] of [['ct', 'Radiographer Nikhil (CT)', 20.5, 5.5, 'ctctl'], ['mri', 'Radiographer Siobhan (MRI)', 31.5, 5.2, 'mrictl'], ['xr', 'Radiographer Tui (X-ray)', 52.8, 3.4, 'xray']]) {
+    const r = spawnNpc({ role: 'radiographer', name, x, z, home: { zone } });
+    r.scanner = id;
+  }
   // East wing, roof, basement props
   for (const g of G.world.gelSpots) P.spawn('gel', g.x, null, g.z);
-  P.spawn('box', 51.5, null, 2); P.spawn('box', 52.6, null, 4.2); P.spawn('paper', 51.8, null, 5);
+  P.spawn('box', 60.4, null, 23); P.spawn('box', 61.6, null, 21.6); P.spawn('paper', 59.6, null, 21.6);
   for (const [x, z] of G.world.cafeChairs) P.spawn('chair', x, null, z);
-  P.spawn('coffee', 58, 0.8, 16); P.spawn('bin', 62.3, null, 21.5);
+  P.spawn('coffee', 58, 0.8, 15.4); P.spawn('bin', 62.3, null, 16);
   P.spawn('paper', 60.5, 0.55, 2.2); P.spawn('coffee', 62.4, 0.62, 4.6);
   P.spawn('paper', 46.5, null, 16.3); P.spawn('bin', 44.6, null, 14.6);
   P.spawn('chair', 76, null, 4); P.spawn('box', 88, null, 10); P.spawn('bin', 70, null, 11);
@@ -422,11 +432,22 @@ function addCase(opts = {}) {
   if (opts.clinical) c.clinical = opts.clinical;
   if (opts.study) c.study = opts.study;
   G.cases.push(c);
+  // Most requests have to be scanned first; they reach the worklist when the radiographer finishes.
+  if (!opts.prescanned && G.scan.enqueue(c, opts.urgent)) return c;
   G.stats.peakList = Math.max(G.stats.peakList, G.list());
   if (!opts.silent) toast(`New request: ${c.study} · ${c.location}`);
   if (G.mode === 'pacs') G.pacs.renderList();
   return c;
 }
+
+G.onScanned = (c) => {
+  c.status = 'done';
+  c.arrived = G.time;
+  G.stats.scanned++;
+  G.stats.peakList = Math.max(G.stats.peakList, G.list());
+  toast(`On PACS: ${c.study} · ${c.location}`);
+  if (G.mode === 'pacs') G.pacs.renderList();
+};
 
 // ---------------------------------------------------------------- reporting
 G.onReport = (c, finding, correct, nailed, speed = false) => {
@@ -569,6 +590,11 @@ function talk(n) {
     case 'dms': n.say('Let\'s schedule a meeting about this meeting.', 3); break;
     case 'security': n.say(G.wanted > 0 ? 'Oh, it\'s YOU.' : 'Keep your nose clean, doc.', 3); if (G.wanted > 0) G.caught(n); break;
     case 'firefighter': n.say('Stand back, doc!', 2); break;
+    case 'radiographer': {
+      const q = G.scan.queued(n.scanner);
+      n.say(pick([q ? `${q} in my queue. Report faster, doc.` : 'Quiet for once. Don\'t jinx it.', 'Please don\'t stand in the room during a scan.', 'Who keeps ordering scans on sandwiches?', n.scanner === 'mri' ? 'NO METAL past that line.' : 'Lead aprons are on the hook if you\'re staying.']), 3);
+      break;
+    }
     case 'chaplain': n.say(pick(LINES.chaplain), 3); if (G.list() > 10) toast('The chaplain offers to pray for your worklist.'); break;
     case 'cleaner': n.say(pick(LINES.cleaner), 3); break;
     case 'ghost': n.say(pick(LINES.ghost), 3.5); G.stats.ghostChats++; if (G.stats.ghostChats === 1) toast('The ghost passes through you. You feel a sudden urge to report something.'); break;
@@ -733,7 +759,7 @@ function useStation(id) {
         G.stats.ctJokes++;
         const path = thing?.type === 'sandwich' ? 'sandwich' : pick(['fork', 'pager', 'sandwich', 'normal']);
         const who = victim ? victim.name : `a ${thing.T.name.toLowerCase()}`;
-        addCase({ forced: { modality: 'abdo', path }, location: 'CT Room', study: 'CT Whole Body (unrequested)', clinical: `Scanned ${who} because they were near the scanner. No clinical indication whatsoever.` });
+        addCase({ prescanned: true, forced: { modality: 'abdo', path }, location: 'CT Room', study: 'CT Whole Body (unrequested)', clinical: `Scanned ${who} because they were near the scanner. No clinical indication whatsoever.` });
         if (victim) victim.say('Did... did you just scan me?', 3);
         toast(`You CT'd ${who}. It's on the worklist now. You'll have to report it.`);
       } else toast('You scan an empty table. That\'s 1 mSv of nothing.');
@@ -806,7 +832,7 @@ function useStation(id) {
       if (G.stats.ancient) { toast('The old lightbox flickers. There\'s nothing else on it.'); return; }
       G.stats.ancient = 1;
       {
-        const c = addCase({ silent: true, forced: { modality: 'chest', path: pick(['ptx', 'mass', 'consolidation', 'normal']) }, study: 'CT Chest (1987, never reported)', location: 'Basement (lost)', clinical: 'Handwritten in fountain pen: "?something. Pls report. Urgent." Dated 14/3/1987.' });
+        const c = addCase({ silent: true, prescanned: true, forced: { modality: 'chest', path: pick(['ptx', 'mass', 'consolidation', 'normal']) }, study: 'CT Chest (1987, never reported)', location: 'Basement (lost)', clinical: 'Handwritten in fountain pen: "?something. Pls report. Urgent." Dated 14/3/1987.' });
         c.arrived = G.time - 39 * 365 * 24 * 60;
         c.patient = 'UNKNOWN, 1987';
       }
@@ -988,6 +1014,7 @@ let ringT = 0;
 let smoke = 0;
 const traumaTimes = [90, 250, 420].map((t) => ({ t, done: false }));
 const zoneFire = Object.fromEntries(ZONES.map((z) => [z.id, { t: 0, sprinkle: 0 }]));
+G.zoneFire = zoneFire;
 let corridorBeds = 0;
 let floodCount = 0;
 let consultant = null, dms = null;
@@ -1067,7 +1094,7 @@ function updateSystems(dt) {
     $('fade-text').textContent = 'You fell off the roof. You wake up in Resus with a mild headache and a CT brain request with your name on it.';
     fade.hidden = false;
     P.y = 0; P.vy = 0; P.pos.x = 10; P.pos.z = 18; P.yaw = 0;
-    addCase({ silent: true, forced: { modality: 'head', path: 'normal' }, study: 'CT Brain (you)', location: 'Resus 3', clinical: 'Radiologist fell off the roof. Somehow fine. Insists on reporting own scan.' });
+    addCase({ silent: true, urgent: true, forced: { modality: 'head', path: 'normal' }, study: 'CT Brain (you)', location: 'Resus 3', clinical: 'Radiologist fell off the roof. Somehow fine. Insists on reporting own scan.' });
     setTimeout(() => (fade.hidden = true), 2500);
   }
   // New requests
@@ -1082,7 +1109,7 @@ function updateSystems(dt) {
       const opts = { head: ['edh', 'sdh', 'normal'], chest: ['ptx', 'pe', 'normal'], abdo: ['freeair', 'collection', 'normal'] };
       for (const m of ['head', 'chest', 'abdo']) addCase({ location: `Resus ${1 + Math.floor(Math.random() * 4)}`, silent: true, forced: { modality: m, path: pick(opts[m]) } });
       page('TRAUMA CALL: MBA x3, pan-scans incoming NOW');
-      toast('TRAUMA CALL: 3 scans hit the list at once.', 'bad');
+      toast('TRAUMA CALL: 3 pan-scans jump the CT queue.', 'bad');
     }
   }
   // Pages
@@ -1167,6 +1194,7 @@ function updateSystems(dt) {
   }
 
   // Fire
+  G.scan.update(dt);
   G.fire.update(dt);
   const burning = G.fire.burning.length > 0;
   if (burning) { G.alarmT += dt; G.noFireT = 0; } else G.noFireT += dt;
@@ -1338,7 +1366,7 @@ function updateSystems(dt) {
     }
   }
   // MRI yanks metal out of your hands
-  if (!G.quenched && P.pos.x > 29.5 && P.pos.z < 8.6) {
+  if (!G.quenched && P.pos.x > 33.6 && P.pos.z < 8.6) {
     const m = G.world.magnet;
     const d = Math.hypot(m.x - P.pos.x, m.z - P.pos.z);
     const held = P.held || P.pushing;
@@ -1458,6 +1486,7 @@ function endShift() {
   const headlines = [];
   if (s.standDowns) headlines.push(`${s.standDowns} DOCTOR${s.standDowns > 1 ? 'S' : ''} STOOD DOWN AFTER NIGHT-LONG RISKMANN BLITZ BY RADIOLOGIST`);
   else if (s.riskmansFiled >= 5) headlines.push(`RADIOLOGIST FILES ${s.riskmansFiled} INCIDENT REPORTS IN ONE NIGHT`);
+  if (s.radiationDoses >= 3) headlines.push(`RADIOLOGIST STANDS IN SCAN ROOM ${s.radiationDoses} TIMES; RADIOGRAPHERS UNION CONSULTED`);
   if (s.zaps) headlines.push(`${s.zaps} PEOPLE DEFIBRILLATED "FOR NO CLINICAL REASON"`);
   if (s.kicks + s.tackles >= 5) headlines.push('ED STAFF REQUEST SHIN GUARDS FOR NIGHT SHIFT');
   if (s.wildWins) headlines.push(`RADIOLOGIST TELLS ED: ${(s.wildUsed || '').replace(/\(.*?\)/g, '').replace(/"/g, '').trim().replace(/\.$/, '').toUpperCase()}`);
@@ -1489,6 +1518,7 @@ function endShift() {
     ['Arguments won / lost', `${s.argumentsWon} / ${s.argumentsLost}`], ['Wild arguments that worked', s.wildWins], ['Times hidden', s.hides], ['Times found hiding', s.timesFound],
     ['Kicks / tackles', `${s.kicks} / ${s.tackles}`], ['Defibrillated (not in arrest)', s.zaps], ['Slipped on your spill', s.slips], ['Bedpan bonks', s.bonks],
     ['RiskManns filed / upheld', `${s.riskmansFiled} / ${s.riskmansUpheld}`], ['Vexatious reports', s.vexatious], ['Colleagues stood down', s.standDowns], ['RiskManns about you', G.riskman.aboutYou.length],
+    ['Patients scanned tonight', s.scanned], ['Times you stood in the room during a scan', s.radiationDoses],
     ['Straight-to-theatre calls', s.clinicalCalls], ['Searches evaded', s.searchesEvaded], ['Knocks on your door', s.knocks], ['Lift rides', s.liftRides], ['Things thrown off the roof', s.roofThrows],
   ];
   $('m-stats').innerHTML = rows.map(([k, v]) => `<div><span>${k}</span><b>${v}</b></div>`).join('');
@@ -1516,7 +1546,7 @@ window.addEventListener('resize', resize);
 resize();
 
 populate();
-for (let i = 0; i < 3; i++) addCase({ silent: true });
+for (let i = 0; i < 3; i++) addCase({ silent: true, prescanned: true });
 G.time = 0;
 drawTVs();
 G.pacs.drawMonitors();

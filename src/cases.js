@@ -1,7 +1,7 @@
 // Case / request-form generator. All patients and staff are fictional.
 import { createStudy } from './ctgen.js';
 
-export const STUDY_NAMES = { abdo: 'CT Abdomen/Pelvis', head: 'CT Brain (non-con)', chest: 'CT Pulmonary Angiogram', us: 'US-guided hip aspirate' };
+export const STUDY_NAMES = { abdo: 'CT Abdomen/Pelvis', head: 'CT Brain (non-con)', chest: 'CT Pulmonary Angiogram', us: 'US-guided hip aspirate', xr: 'Chest X-ray (PA erect)', mr: 'MRI Brain (stroke protocol)' };
 
 export const FINDINGS = {
   abdo: {
@@ -30,6 +30,17 @@ export const FINDINGS = {
     ptx: 'Pneumothorax',
     mass: 'Spiculated lung mass',
     consolidation: 'Consolidation / pneumonia',
+  },
+  xr: {
+    normal: 'No acute cardiopulmonary abnormality',
+    ptx: 'Pneumothorax',
+    consolidation: 'Consolidation',
+    freeair: 'Free gas under the diaphragm',
+    pleural: 'Pleural effusion',
+  },
+  mr: {
+    normal: 'No acute intracranial abnormality',
+    infarct: 'Acute infarct (bright on T2/DWI)',
   },
   us: {
     normal: 'No effusion: aspirate not indicated',
@@ -63,6 +74,17 @@ const CLINICAL = {
     consolidation: ['fever, productive cough, crackles R base', 'SOB + febrile, ?PE ?pneumonia ?both'],
     normal: ['chest pain, trop neg x2, "just rule it out"', 'pleuritic pain, Wells low, D-dimer 0.6 (age-adjusted fine?)'],
   },
+  xr: {
+    ptx: ['sudden pleuritic pain + SOB, tall and thin', 'pleuritic pain after coughing, reduced AE'],
+    consolidation: ['fever, productive cough, crackles L base', 'febrile, SOB, CRP 180'],
+    freeair: ['sudden epigastric pain, board-like abdo, ?perf', 'known PUD, now severe pain. Erect CXR please'],
+    pleural: ['SOB, orthopnoea, known heart failure', 'dull to percussion R base, SOB'],
+    normal: ['cough x2 weeks, afebrile, sats 98%', '"pre-op" CXR. At 3am. For a toenail.'],
+  },
+  mr: {
+    infarct: ['CT brain normal, persistent dysphasia, ?stroke', 'wake-up stroke, CT normal, R arm weakness'],
+    normal: ['dizzy, CT brain normal, ?posterior circulation stroke', 'headache, CT normal, neuro "want an MRI tonight"'],
+  },
   us: {
     effusion: ['hot swollen R hip, febrile 39.2, can\'t weight bear, CRP 180', 'R hip held flexed + ext rotated, rigors, CRP 220'],
     normal: ['R hip pain after gardening, afebrile, walked in, CRP 12', '"hip feels funny", mobilising, bloods normal'],
@@ -71,6 +93,8 @@ const CLINICAL = {
 const QUESTIONS = {
   abdo: ['Exclude perforation', 'Exclude collection', '?SBO', 'Exclude AAA / rupture', '?Appendicitis', '?Renal colic', '?Nec fasc', '?Cause'],
   us: ['?Septic arthritis: aspirate please', 'US hip + aspirate ?effusion'],
+  xr: ['?Pneumonia', '?Pneumothorax', 'Erect CXR ?free gas', '?Effusion', 'CXR please'],
+  mr: ['?Stroke (CT negative)', 'MRI brain ?posterior circulation stroke'],
   head: ['Exclude bleed', 'Exclude haemorrhage', 'Code stroke: ?infarct ?bleed', '?SAH', 'Exclude intracranial pathology'],
   chest: ['Exclude PE', '?PE', 'Exclude PE ?other cause', 'CTPA please'],
 };
@@ -102,7 +126,7 @@ export function makeCase({ requester, gameMinutes, forced } = {}) {
   let modality, path;
   if (forced) ({ modality, path } = forced);
   else {
-    modality = weighted([['abdo', 45], ['head', 28], ['chest', 23], ['us', 9]]);
+    modality = weighted([['abdo', 40], ['head', 25], ['chest', 20], ['xr', 18], ['us', 7], ['mr', 5]]);
     const paths = Object.keys(FINDINGS[modality]).filter((p) => !JOKE.has(p));
     path = Math.random() < 0.28 ? 'normal' : pick(paths.filter((p) => p !== 'normal'));
     if (modality === 'abdo' && Math.random() < 0.06) path = pick(['fork', 'pager', 'sandwich']);

@@ -540,12 +540,101 @@ function drawUS(S, z) {
   return b;
 }
 
+// ---------- CHEST X-RAY (single PA erect image; values are brightness 0-255) ----------
+function setupXR(S, rng) {
+  S.rng = rng;
+  S.vessels = [];
+  for (let i = 0; i < 90; i++) {
+    const side = i % 2 ? 1 : -1;
+    S.vessels.push({ side, a: -0.5 + rng() * 2.4, len: 0.12 + rng() * 0.3, w: 0.004 + rng() * 0.006 });
+  }
+  const L = {
+    ptx: { x: -0.55, y: -0.35, r: 0.28, z0: 0, z1: 1 },
+    consolidation: { x: 0.42, y: 0.2, r: 0.2, z0: 0, z1: 1 },
+    freeair: { x: -0.35, y: 0.5, r: 0.2, z0: 0, z1: 1 },
+    pleural: { x: -0.4, y: 0.5, r: 0.22, z0: 0, z1: 1 },
+  };
+  S.lesionN = L[S.path] || null;
+}
+function drawXR(S) {
+  const b = new Float32Array(N * N).fill(12);
+  const p = S.path;
+  const add = (v) => (o) => o + v;
+  // Body and shoulders
+  box(b, 0, 0.1, 0.8, 0.95, 0, 105);
+  E(b, 0, -0.78, 0.95, 0.3, 0, 105);
+  E(b, 0, 0.9, 0.85, 0.35, 0, 125);
+  // Lungs: dark, brighter towards the hila, with branching vessel markings
+  const lungs = [{ side: -1, cx: -0.34, cy: -0.02, rx: 0.27, ry: 0.56 }, { side: 1, cx: 0.34, cy: -0.02, rx: 0.26, ry: 0.54 }];
+  if (p === 'ptx') { E(b, lungs[0].cx, lungs[0].cy, lungs[0].rx, lungs[0].ry, 0, 20); lungs[0].cx += 0.07; lungs[0].rx *= 0.62; lungs[0].ry *= 0.85; lungs[0].cy += 0.05; }
+  for (const L of lungs) {
+    E(b, L.cx, L.cy, L.rx, L.ry, 0, (o, u, v) => 34 + 30 * Math.exp(-Math.hypot(u - L.side * 0.12, v + 0.05) * 3.5) + (hash3(u * 90, v * 90, 5) - 0.5) * 10);
+  }
+  if (p === 'ptx') E(b, lungs[0].cx, lungs[0].cy, lungs[0].rx, lungs[0].ry, 0, (o, u, v, lx, ly, d) => (d > 0.96 ? o + 55 : o));
+  for (const vsl of S.vessels) {
+    const L = lungs[vsl.side < 0 ? 0 : 1];
+    const ax = Math.cos(vsl.a) * vsl.side, ay = Math.sin(vsl.a);
+    box(b, vsl.side * 0.14 + ax * vsl.len * 0.5, -0.05 + ay * vsl.len * 0.5, vsl.len * 0.5, vsl.w, Math.atan2(ay, ax), (o, u, v) => {
+      const q = ((u - L.cx) / L.rx) ** 2 + ((v - L.cy) / L.ry) ** 2;
+      return q < 1 ? o + 9 : o;
+    });
+  }
+  // Heart, mediastinum, spine
+  E(b, 0.07, 0.28, 0.3, 0.24, -0.2, 150);
+  box(b, 0, -0.35, 0.09, 0.45, 0, 150);
+  box(b, 0, 0.05, 0.055, 1.0, 0, (o, u, v) => o + 45 + (Math.sin(v * 38) > 0.75 ? 25 : 0));
+  // Diaphragm domes: liver under the right, stomach bubble under the left
+  E(b, -0.35, 0.72, 0.36, 0.2, 0, 135);
+  E(b, 0.35, 0.74, 0.34, 0.18, 0, 128);
+  if (p !== 'freeair') E(b, 0.36, 0.64, 0.08, 0.05, 0, 40);
+  // Ribs (posterior arcs), clavicles
+  for (let i = 0; i < 9; i++) {
+    for (const sd of [-1, 1]) {
+      const y0 = -0.64 + i * 0.12;
+      // Posterior rib: rises from the spine, then sweeps down and out
+      let px = 0.07, py = y0;
+      for (let k = 1; k <= 8; k++) {
+        const t = k / 8, x = 0.07 + t * 0.66, y = y0 - 0.07 * Math.sin(Math.PI * t * 0.9) + 0.16 * t * t;
+        box(b, sd * (px + x) / 2, (py + y) / 2, Math.hypot(x - px, y - py) / 2 + 0.004, 0.011, Math.atan2(y - py, (x - px) * sd), add(28));
+        px = x; py = y;
+      }
+    }
+  }
+  box(b, -0.3, -0.72, 0.26, 0.02, -0.15, add(60));
+  box(b, 0.3, -0.72, 0.26, 0.02, 0.15, add(60));
+  // Pathology
+  if (p === 'consolidation') E(b, 0.42, 0.2, 0.17, 0.16, 0.2, (o, u, v, lx, ly, d) => (o < 110 ? o + 95 * (1 - d * d * 0.6) + (hash3(u * 40, v * 40, 8) - 0.5) * 25 : o));
+  if (p === 'pleural') E(b, -0.36, 0.72, 0.34, 0.3, 0, (o, u, v) => (v > 0.42 + (u + 0.62) * -0.25 && o < 120 ? 125 : o));
+  if (p === 'freeair') E(b, -0.35, 0.56, 0.3, 0.07, 0, (o, u, v, lx, ly) => (ly > -0.2 && o > 120 ? 22 : o));
+  return b;
+}
+
+// ---------- MRI BRAIN: the CT head anatomy re-mapped to T2-like contrast ----------
+function t2(hu) {
+  if (hu < -500) return 20;            // air
+  if (hu > 600) return 60;             // bone: dark on MRI
+  if (hu < -50) return 700;            // fat: bright
+  if (hu < 12) return 950;             // CSF, and infarcted brain (oedema): bright
+  if (hu < 22) return 820;
+  if (hu < 33) return 430;             // white matter
+  if (hu < 45) return 560;             // grey matter
+  if (hu < 90) return 180;             // acute blood: dark
+  return 300;
+}
+function drawMR(S, z) {
+  const b = drawHead(S, z);
+  for (let i = 0; i < b.length; i++) b[i] = t2(b[i]);
+  return b;
+}
+
 // ---------- study factory ----------
 const MODALITIES = {
   abdo: { n: 64, setup: setupAbdo, draw: drawAbdo, fov: 420, window: 'Soft tissue', noise: 22 },
   head: { n: 36, setup: setupHead, draw: drawHead, fov: 230, window: 'Brain', noise: 6 },
   chest: { n: 56, setup: setupChest, draw: drawChest, fov: 380, window: 'Soft tissue', noise: 18 },
   us: { n: 24, setup: setupUS, draw: drawUS, fov: 60, window: 'US', noise: 6 },
+  xr: { n: 1, setup: setupXR, draw: drawXR, fov: 430, window: 'X-ray', noise: 4 },
+  mr: { n: 30, setup: setupHead, draw: drawMR, fov: 230, window: 'MR', noise: 18 },
 };
 
 export const WINDOWS = {
@@ -554,6 +643,8 @@ export const WINDOWS = {
   Bone: { ww: 2000, wl: 500 },
   Brain: { ww: 80, wl: 40 },
   US: { ww: 256, wl: 128 },
+  'X-ray': { ww: 230, wl: 115 },
+  MR: { ww: 1000, wl: 480 },
 };
 
 export function createStudy({ modality, path, seed }) {

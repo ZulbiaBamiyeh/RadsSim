@@ -240,12 +240,12 @@ export class Pacs {
       g.fillText(c.modality === 'us' ? `Depth ${S.fov} mm` : `${S.fov} mm FOV`, W - 10, W - 10);
       g.textAlign = 'left';
       g.fillStyle = '#f5b041';
-      g.fillText(c.modality === 'us' ? `Frame ${this.slice + 1}/${S.n}   R hip, long.   5 MHz` : `Im: ${this.slice + 1}/${S.n}   Ax 2.0mm`, 10, W - 28);
+      g.fillText(c.modality === 'us' ? `Frame ${this.slice + 1}/${S.n}   R hip, long.   5 MHz` : c.modality === 'xr' ? 'PA erect   120 kVp' : c.modality === 'mr' ? `Im: ${this.slice + 1}/${S.n}   Ax T2 / DWI` : `Im: ${this.slice + 1}/${S.n}   Ax 2.0mm`, 10, W - 28);
       g.fillText(`W: ${Math.round(this.ww)}  L: ${Math.round(this.wl)}`, 10, W - 10);
       g.fillStyle = '#ccc';
       g.textAlign = 'center';
       g.textBaseline = 'middle';
-      if (c.modality !== 'us') {
+      if (c.modality !== 'us' && c.modality !== 'xr') {
         g.fillText('A', W / 2, 60);
         g.fillText('R', 16, W / 2);
         g.fillText('L', W - 16, W / 2);

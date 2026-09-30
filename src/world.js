@@ -162,6 +162,16 @@ export function buildWorld(scene) {
     }
   }
   scene.add(wallMesh, fenceMesh);
+  // Lead-glass control-room windows: solid below and above, glass in the middle.
+  const glassMat = new THREE.MeshLambertMaterial({ color: '#9fd0e8', transparent: true, opacity: 0.28, depthWrite: false });
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    if (grid[y][x] !== 'G') continue;
+    box(scene, 1, 1.0, 1, '#e9e6df', x + 0.5, 0.5, y + 0.5);
+    box(scene, 1, 0.8, 1, '#e9e6df', x + 0.5, 2.6, y + 0.5);
+    const gl = new THREE.Mesh(new THREE.BoxGeometry(0.06, 1.2, 1), glassMat);
+    gl.position.set(x + 0.5, 1.6, y + 0.5);
+    scene.add(gl);
+  }
   // Skirting stripe on walls for readability
   const skirt = new THREE.InstancedMesh(new THREE.BoxGeometry(1.02, 0.18, 1.02), mat('#5d7d8f'), nWall);
   wi = 0;
@@ -279,37 +289,74 @@ export function buildWorld(scene) {
     { id: 'kettle', x: 14.5, z: 2.1, r: 1.0, label: 'Make instant coffee' },
   );
 
-  // ---------- CT ----------
+  // ---------- CT (scan room + control room behind lead glass) ----------
   const gantry = new THREE.Mesh(new THREE.TorusGeometry(0.85, 0.38, 16, 40), mat('#f2f4f7'));
-  gantry.position.set(23.5, 1.25, 3.5);
+  gantry.position.set(25, 1.25, 3.5);
   gantry.rotation.y = Math.PI / 2;
   scene.add(gantry);
-  box(scene, 0.8, 0.5, 2.2, '#dfe3e8', 23.5, 0.25, 3.5);
-  addStatic(23.0, 2.2, 24.0, 4.8, 2.2);
-  furniture(scene, 24.0, 3.15, 27.6, 3.85, 0.82, '#cfd6de');
+  box(scene, 0.8, 0.5, 2.2, '#dfe3e8', 25, 0.25, 3.5);
+  addStatic(24.5, 2.2, 25.5, 4.8, 2.2);
+  furniture(scene, 25.5, 3.15, 28.8, 3.85, 0.82, '#cfd6de');
   furniture(scene, 19.05, 3.0, 19.9, 5.4, 0.8, '#4a5663');
   box(scene, 0.05, 0.4, 0.7, '#0a0', 19.9, 1.1, 4.2).material = new THREE.MeshBasicMaterial({ color: '#1d3b52' });
-  sign(scene, 'X-RAY ON', 23.5, 2.7, 1.03, 0, 1.2, 0.3, { bg: '#300', fg: '#f33', font: 'bold 60px Arial' });
-  out.interactables.push({ id: 'ctconsole', x: 20.4, z: 4.2, r: 1.3, label: 'CT console: scan whatever is on the table' });
-  out.ctTable = { x: 25.8, z: 3.5 };
+  furniture(scene, 21.2, 1.6, 21.9, 5.0, 0.8, '#4a5663');
+  const ctLight = sign(scene, 'X-RAY ON', 25.5, 2.55, 1.03, 0, 1.2, 0.3, { bg: '#300', fg: '#f33', font: 'bold 60px Arial' });
+  const ctDoorLight = sign(scene, 'X-RAY ON', 23.5, 2.2, 9.03, 0, 0.9, 0.22, { bg: '#300', fg: '#f33', font: 'bold 60px Arial' });
+  sign(scene, 'CT CONTROL', 20.5, 2.6, 9.02, 0, 1.4, 0.3);
+  out.interactables.push({ id: 'ctconsole', x: 20.6, z: 4.2, r: 1.3, label: 'CT console: scan whatever is on the table' });
+  out.ctTable = { x: 27, z: 3.5 };
 
   // ---------- MRI ----------
-  furniture(scene, 35.0, 1.6, 38.2, 5.4, 2.5, '#eef0f4');
+  furniture(scene, 36.0, 1.6, 39.2, 5.4, 2.5, '#eef0f4');
   const bore = new THREE.Mesh(new THREE.CircleGeometry(0.75, 32), mat('#9aa3ad'));
-  bore.position.set(38.21, 1.2, 3.5);
+  bore.position.set(39.21, 1.2, 3.5);
   bore.rotation.y = Math.PI / 2;
   scene.add(bore);
   const boreInner = new THREE.Mesh(new THREE.CircleGeometry(0.55, 32), mat('#2a2f36'));
-  boreInner.position.set(38.22, 1.2, 3.5);
+  boreInner.position.set(39.22, 1.2, 3.5);
   boreInner.rotation.y = Math.PI / 2;
   scene.add(boreInner);
-  furniture(scene, 38.2, 3.15, 41.6, 3.85, 0.8, '#d7dce2');
-  out.magnet = { x: 38.3, y: 1.2, z: 3.5 };
+  furniture(scene, 39.2, 3.15, 41.9, 3.85, 0.8, '#d7dce2');
+  out.magnet = { x: 39.3, y: 1.2, z: 3.5 };
   const qb = box(scene, 0.25, 0.25, 0.08, '#d00', 31.2, 1.4, 7.94);
   qb.material = new THREE.MeshBasicMaterial({ color: '#e11' });
   sign(scene, 'EMERGENCY\nQUENCH', 31.2, 1.8, 7.95, Math.PI, 0.6, 0.3, { bg: '#fff', fg: '#c00', font: 'bold 44px Arial' });
   sign(scene, '⚠ ZONE 4: MAGNET IS ALWAYS ON', 36.5, 2.5, 8.99, 0, 2.8, 0.4, { bg: '#e8c547', fg: '#111', font: 'bold 38px Arial' });
   out.interactables.push({ id: 'quench', x: 31.2, z: 7.2, r: 1.2, label: 'Press EMERGENCY QUENCH' });
+  furniture(scene, 30.1, 2.0, 30.9, 4.8, 0.8, '#4a5663');
+  box(scene, 0.05, 0.4, 0.7, '#0a0', 30.9, 1.1, 3.4).material = new THREE.MeshBasicMaterial({ color: '#2a2150' });
+  sign(scene, 'MRI CONTROL', 31.5, 2.6, 9.02, 0, 1.4, 0.3);
+  const mriLight = sign(scene, 'SCANNING', 38.5, 2.5, 1.03, 0, 1.2, 0.3, { bg: '#1a1030', fg: '#b98cff', font: 'bold 60px Arial' });
+
+  // ---------- X-RAY ROOM ----------
+  furniture(scene, 44.4, 1.05, 45.6, 1.45, 1.9, '#d7dce2');            // wall bucky (chest stand)
+  box(scene, 0.9, 0.9, 0.05, '#aeb6bf', 45, 1.4, 1.48);
+  furniture(scene, 47.5, 3.9, 50.5, 4.9, 0.8, '#cfd6de');              // table
+  box(scene, 0.15, 3, 0.15, '#9aa3ad', 49, 1.5, 2.2);                  // ceiling tube column
+  box(scene, 1.6, 0.12, 0.12, '#9aa3ad', 48.2, 2.3, 2.2);
+  const tube = box(scene, 0.5, 0.35, 0.45, '#eef0f4', 47.4, 2.05, 2.2);
+  box(scene, 0.35, 0.05, 0.35, '#333', 47.4, 1.85, 2.2);
+  // Control booth behind a lead screen
+  furniture(scene, 51.4, 1.05, 51.55, 3.4, 2.1, '#8e99a3');
+  const xg = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.6, 1.2), glassMat);
+  xg.position.set(51.47, 1.55, 2.2);
+  scene.add(xg);
+  furniture(scene, 52.4, 1.05, 53.9, 1.75, 0.85, '#4a5663');
+  box(scene, 0.6, 0.4, 0.05, '#111', 53.1, 1.25, 1.5);
+  const xrLight = sign(scene, 'X-RAY ON', 46.5, 2.2, 9.03, 0, 0.9, 0.22, { bg: '#300', fg: '#f33', font: 'bold 60px Arial' });
+  sign(scene, 'X-RAY', 47, 2.6, 9.02, 0, 1.2, 0.3);
+  sign(scene, 'RADIATION\nAREA', 52.6, 2.4, 1.03, 0, 0.8, 0.45, { bg: '#e8c547', fg: '#111', font: 'bold 44px Arial' });
+  out.interactables.push({ id: 'xrconsole', x: 53, z: 2.4, r: 1.2, label: 'X-ray console: expose whoever is at the chest stand' });
+  out.xrStand = { x: 45, z: 2.1 };
+  out.tube = tube;
+
+  // Scanner status lights and patient positions used by the scanning simulation
+  out.scanners = {
+    ct: { lights: [ctLight, ctDoorLight], table: { x0: 28.4, x1: 25.2, y: 1.05, z: 3.5 }, zone: 'ct' },
+    mri: { lights: [mriLight], table: { x0: 41.5, x1: 38.6, y: 1.03, z: 3.5 }, zone: 'mri' },
+    xr: { lights: [xrLight], stand: { x: 45, z: 1.95 }, zone: 'xray' },
+  };
+  out.consoleSpots = { ct: { x: 20.5, z: 4.2 }, mri: { x: 31.6, z: 3.4 }, xr: { x: 52.9, z: 2.5 } };
 
   // ---------- CORRIDOR ----------
   const tvC = document.createElement('canvas');
@@ -323,7 +370,7 @@ export function buildWorld(scene) {
   scene.add(tv);
   sign(scene, 'RADIOLOGY', 5, 2.6, 9.02, 0, 1.6, 0.35);
   sign(scene, 'STAFF ONLY', 13.5, 2.6, 9.02, 0, 1.6, 0.35, { bg: '#555', fg: '#fff', font: 'bold 60px "Archivo Narrow", Arial' });
-  sign(scene, 'CT', 24, 2.6, 9.02, 0, 1.0, 0.35);
+  sign(scene, 'CT', 25, 2.6, 9.02, 0, 1.0, 0.35);
   sign(scene, 'MRI', 35.5, 2.6, 9.02, 0, 1.0, 0.35);
   sign(scene, 'RESUS', 11, 2.6, 12.96, Math.PI, 2.0, 0.4, { bg: '#b01818', fg: '#fff', font: 'bold 70px "Archivo Narrow", Arial' });
   sign(scene, 'WAITING ROOM', 30, 2.6, 12.96, Math.PI, 2.2, 0.4);
@@ -437,20 +484,19 @@ export function buildWorld(scene) {
   };
   out.interactables.push({ id: 'door', x: 5, z: 8.5, r: 1.5, label: 'Lock the reading-room door' });
 
-  // --- Staff toilets ---
-  for (const zx of [45.9, 47.4]) furniture(scene, zx - 0.04, 1.05, zx + 0.04, 3.3, 2.0, '#9aa9b5');
-  box(scene, 1.4, 2.0, 0.06, '#9aa9b5', 44.6 + 0.6, 1.0, 3.3);
-  furniture(scene, 44.2, 6.1, 45.8, 6.9, 0.9, '#e8eef2');
-  plane(1.4, 0.8, '#b8d6e6', 45, 1.7, 6.97, Math.PI);
-  sign(scene, 'TOILETS', 46.5, 2.6, 9.02, 0, 1.2, 0.3);
-  sign(scene, 'OUT OF\nORDER', 47.2, 1.3, 3.34, 0, 0.5, 0.3, { bg: '#fff', fg: '#c00', font: 'bold 44px "Caveat", cursive' });
-  out.interactables.push({ id: 'mirror', x: 45, z: 5.8, r: 1.0, label: 'Look in the mirror' });
+  // --- Staff toilets (south of the cafe) ---
+  for (const zx of [54.45, 55.95]) furniture(scene, zx - 0.04, 22.7, zx + 0.04, 24.95, 2.0, '#9aa9b5');
+  furniture(scene, 55.8, 21.05, 57.9, 21.7, 0.9, '#e8eef2');
+  plane(1.8, 0.8, '#b8d6e6', 56.85, 1.7, 21.03, 0);
+  sign(scene, 'TOILETS', 55.5, 2.6, 19.98, Math.PI, 1.2, 0.3);
+  sign(scene, 'OUT OF\nORDER', 55.2, 1.3, 22.68, Math.PI, 0.5, 0.3, { bg: '#fff', fg: '#c00', font: 'bold 44px "Caveat", cursive' });
+  out.interactables.push({ id: 'mirror', x: 56.8, z: 22.4, r: 1.0, label: 'Look in the mirror' });
 
-  // --- Supply cupboard ---
-  burnBox(50.05, 1.05, 50.7, 7.0, 2.2, '#7d7361', 1.5);
-  burnBox(53.3, 1.05, 53.95, 5.8, 2.2, '#7d7361', 1.5);
-  sign(scene, 'SUPPLY', 51.5, 2.6, 9.02, 0, 1.2, 0.3, { bg: '#555', fg: '#fff', font: 'bold 60px "Archivo Narrow", Arial' });
-  out.gelSpots = [{ x: 51.5, z: 3 }, { x: 52.5, z: 5.5 }, { x: 51.2, z: 6.3 }];
+  // --- Supply cupboard (south of the cafe) ---
+  burnBox(62.3, 21.05, 62.95, 24.95, 2.2, '#7d7361', 1.5);
+  burnBox(59.05, 23.4, 61.3, 24.0, 2.2, '#7d7361', 1.5);
+  sign(scene, 'SUPPLY', 60.5, 2.6, 19.98, Math.PI, 1.2, 0.3, { bg: '#555', fg: '#fff', font: 'bold 60px "Archivo Narrow", Arial' });
+  out.gelSpots = [{ x: 60, z: 22 }, { x: 61.5, z: 22.6 }, { x: 59.6, z: 22.9 }];
 
   // --- On-call room ---
   furniture(scene, 59, 1.2, 61.8, 3.2, 0.5, '#5b6e8c');
@@ -489,13 +535,13 @@ export function buildWorld(scene) {
   out.interactables.push({ id: 'candles', x: 45.1, z: 22.5, r: 1.0, label: 'Light a candle' });
 
   // --- Cafe (closed) ---
-  furniture(scene, 54, 22.8, 61, 23.6, 1.0, '#8a5a3a');
-  furniture(scene, 61.3, 24.1, 62.9, 24.9, 1.6, '#333');
-  for (const [x, z] of [[55, 16], [58, 16], [61, 16], [55, 19], [58, 19], [61, 19]]) furniture(scene, x - 0.45, z - 0.45, x + 0.45, z + 0.45, 0.75, '#d9d2c3', 'flammable');
-  out.cafeChairs = [[55, 17], [58, 17], [61, 17], [55, 20], [58, 20], [61, 20], [54, 16], [57, 19]];
+  furniture(scene, 53.1, 18.3, 58.8, 19.0, 1.0, '#8a5a3a');
+  furniture(scene, 61.4, 18.9, 62.9, 19.95, 1.6, '#333');
+  for (const [x, z] of [[55, 15.4], [58, 15.4], [61, 15.4], [60.5, 17.2]]) furniture(scene, x - 0.45, z - 0.45, x + 0.45, z + 0.45, 0.75, '#d9d2c3', 'flammable');
+  out.cafeChairs = [[55, 16.5], [58, 16.5], [61, 16.5], [59.5, 17.2], [54, 15.4]];
   sign(scene, 'CAFE', 57.5, 2.6, 12.96, Math.PI, 1.2, 0.35, { bg: '#7a4b2a', fg: '#fff', font: 'bold 60px "Archivo Narrow", Arial' });
-  sign(scene, 'CLOSED\n(opens 7:30)', 57.5, 1.4, 22.78, Math.PI, 1.0, 0.45, { bg: '#fff', fg: '#7a4b2a', font: 'bold 44px Arial' });
-  out.interactables.push({ id: 'espresso', x: 61, z: 22.2, r: 1.1, label: 'Bash the cafe coffee machine' });
+  sign(scene, 'CLOSED\n(opens 7:30)', 56, 1.4, 18.28, Math.PI, 1.0, 0.45, { bg: '#fff', fg: '#7a4b2a', font: 'bold 44px Arial' });
+  out.interactables.push({ id: 'espresso', x: 62.1, z: 18.1, r: 1.1, label: 'Bash the cafe coffee machine' });
 
   // --- Corridor east: laundry hamper + lift ---
   furniture(scene, 53, 11.95, 54, 12.95, 1.0, '#4f7a8c', 'flammable');
@@ -595,15 +641,15 @@ export function buildWorld(scene) {
   out.hideSpots = [
     { id: 'desk', label: 'under the reading-room desk', ix: 1.7, iz: 2.4, x: 1.6, z: 1.45, camY: 0.5, exit: { x: 1.8, z: 2.6 }, overlay: 'under', chance: 0.35, note: 'You curl up under the desk among 40 years of dust.' },
     { id: 'fridge', label: 'in the staff fridge', ix: 16.0, iz: 2.3, x: 17.05, z: 1.5, camY: 1.2, exit: { x: 16.8, z: 2.8 }, overlay: 'fridge', chance: 0.08, maxTime: 25, note: 'It is 4°C in here. The milk expired in March.' },
-    { id: 'ct', label: 'inside the CT gantry', ix: 24.8, iz: 4.6, x: 23.5, z: 3.5, camY: 1.0, exit: { x: 25.5, z: 5.5 }, overlay: 'gantry', chance: 0.25, note: 'You lie on the CT table inside the gantry. Nobody would look here.' },
-    { id: 'mri', label: 'inside the MRI bore', ix: 39.6, iz: 4.7, x: 38.9, z: 3.5, camY: 1.15, exit: { x: 40, z: 5.3 }, overlay: 'gantry', chance: 0.15, note: 'The magnet hums. Your bank cards are now blank.' },
+    { id: 'ct', label: 'inside the CT gantry', ix: 26.4, iz: 4.7, x: 25, z: 3.5, camY: 1.0, exit: { x: 26.5, z: 5.5 }, overlay: 'gantry', chance: 0.25, note: 'You lie on the CT table inside the gantry. Nobody would look here.' },
+    { id: 'mri', label: 'inside the MRI bore', ix: 40.6, iz: 4.7, x: 39.9, z: 3.5, camY: 1.15, exit: { x: 41, z: 5.3 }, overlay: 'gantry', chance: 0.15, note: 'The magnet hums. Your bank cards are now blank.' },
     { id: 'blend', label: 'pretending to be a patient', ix: seat.x, iz: seat.z + 1.1, x: seat.x, z: seat.z, camY: 1.15, exit: { x: seat.x, z: seat.z + 1.1 }, overlay: 'blend', chance: 0.3, note: 'You slump in a waiting-room chair and moan convincingly.' },
-    { id: 'stall', label: 'in a toilet stall', ix: 45.2, iz: 3.9, x: 45.2, z: 2.1, camY: 1.2, exit: { x: 46.5, z: 5.2 }, overlay: 'stall', chance: 0.05, note: 'You lock the stall. Surely they wouldn\'t...' },
-    { id: 'supply', label: 'behind the supply shelves', ix: 52.2, iz: 6.6, x: 53.5, z: 6.5, camY: 1.0, exit: { x: 52, z: 5.2 }, overlay: 'shelves', chance: 0.15, note: 'You squeeze behind a pallet of size-S gloves.' },
+    { id: 'stall', label: 'in a toilet stall', ix: 53.7, iz: 22.3, x: 53.7, z: 24.2, camY: 1.2, exit: { x: 54.2, z: 21.8 }, overlay: 'stall', chance: 0.05, note: 'You lock the stall. Surely they wouldn\'t...' },
+    { id: 'supply', label: 'behind the supply shelves', ix: 60.2, iz: 22.8, x: 59.6, z: 24.5, camY: 1.0, exit: { x: 60.3, z: 22.2 }, overlay: 'shelves', chance: 0.15, note: 'You squeeze behind a pallet of size-S gloves.' },
     { id: 'underbed', label: 'under the on-call bed', ix: 60.2, iz: 3.9, x: 60.4, z: 2.2, camY: 0.3, exit: { x: 59.5, z: 4.2 }, overlay: 'under', chance: 0.3, note: 'Under the bed: a sock, a 2011 BNF and a pager that still beeps.' },
     { id: 'wardrobe', label: 'in the wardrobe', ix: 56.1, iz: 3.1, x: 55.7, z: 1.75, camY: 1.55, exit: { x: 56.2, z: 3.4 }, overlay: 'slats', chance: 0.2, note: 'You hide among abandoned scrubs. Narnia is not back here.' },
     { id: 'altar', label: 'behind the altar', ix: 48, iz: 22.4, x: 48, z: 24.5, camY: 0.9, exit: { x: 48, z: 22.2 }, overlay: 'dark', chance: 0.12, note: 'You crouch behind the altar and consider your choices.' },
-    { id: 'counter', label: 'behind the cafe counter', ix: 57.5, iz: 22.2, x: 57.5, z: 24.3, camY: 0.8, exit: { x: 57.5, z: 22.1 }, overlay: 'dark', chance: 0.25, note: 'You hide behind the counter next to a sad tray of muffins.' },
+    { id: 'counter', label: 'behind the cafe counter', ix: 56, iz: 17.6, x: 56, z: 19.5, camY: 0.8, exit: { x: 56, z: 17.4 }, overlay: 'dark', chance: 0.25, note: 'You hide behind the counter next to a sad tray of muffins.' },
     { id: 'hamper', label: 'in the laundry hamper', ix: 53.5, iz: 11.3, x: 53.5, z: 12.45, camY: 0.75, exit: { x: 53.5, z: 11.2 }, overlay: 'laundry', chance: 0.2, note: 'You burrow into the laundry. Some of it is damp. Don\'t think about it.' },
     { id: 'heli', label: 'in the helicopter', ix: 78.3, iz: 7, x: 80, z: 7, camY: 1.3, exit: { x: 77.6, z: 7 }, overlay: 'heli', chance: 0.1, note: 'You sit in the pilot\'s seat. You do not know how to fly.' },
     { id: 'drawer', label: 'in a morgue drawer', ix: 70.5, iz: 18.7, x: 70.5, z: 17.35, camY: 0.9, exit: { x: 70.5, z: 19.2 }, overlay: 'drawer', chance: 0.02, note: 'The drawer next to yours is labelled "RESERVED: NIGHT RADIOLOGIST".' },

@@ -111,6 +111,19 @@ At the PACS workstation:
   - **Nec fasc CTs:** "Nec fasc is a clinical diagnosis."
   - **How they play out:** when the patient really is sick, the clinical arguments send them straight to theatre. That counts as a good call, with no M&M. When the request is weak, the registrar folds.
 
+## The imaging department
+
+- **CT and MRI suites:** each has a scan room and a control room behind lead glass, run by a radiographer.
+- **New X-ray room:** a chest stand, a ceiling tube and a lead-screened control booth. The toilets and supply cupboard moved behind the cafe to make room.
+- **Scanning comes first.** Requests queue for the right machine (CT for abdo/head/CTPA, MRI for stroke-protocol brains, X-ray for chest films).
+  - The radiographer scans each patient: they slide through the CT gantry or into the MRI bore, or stand at the chest stand.
+  - The "X-RAY ON" / "SCANNING" signs light up during a scan.
+  - The study only lands on your worklist when the scan finishes. The HUD and corridor TV show the scan queues.
+- **Machines go down.** A machine stops scanning when there's a fire in its room, the sprinklers are on, the magnet has been quenched, or its radiographer is kicked, zapped, evacuated or called into a RiskMann meeting.
+  - Its queue stops moving, and ED pages you asking why.
+  - Stand in the CT or X-ray room during an exposure and the radiographer shouts at you and restarts the scan.
+- **New studies to report:** chest X-rays (pneumothorax, consolidation, free gas under the diaphragm, pleural effusion) and MRI brains, stroke protocol, on T2-style contrast (acute infarct).
+
 ## Code map
 
 | File | What it does |
@@ -127,6 +140,7 @@ At the PACS workstation:
 | `src/player.js` | First-person controller, carrying, bed pushing |
 | `src/particles.js` | GPU point particles for flames, smoke, spray and sprinklers |
 | `src/audio.js` | Synthesised sound effects (no audio files) |
+| `src/scanning.js` | Scan queues, radiographers and patients moving through CT, MRI and X-ray |
 | `src/riskman.js` | RiskMann incident-reporting app |
 | `src/argue.js` | The registrar argument when you bounce a request |
 | `src/touch.js` | Phone/tablet controls: move stick, drag-to-look, action buttons |

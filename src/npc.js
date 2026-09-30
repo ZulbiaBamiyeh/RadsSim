@@ -17,6 +17,7 @@ const ROLES = {
   firefighter: { body: '#b58a2c', title: 'Firefighter', speed: 2.4 },
   dms: { body: '#5a5f66', title: 'Director of Medical Services', speed: 1.5 },
   chaplain: { body: '#4b3a63', title: 'Hospital Chaplain', speed: 1.0 },
+  radiographer: { body: '#2a7f8f', title: 'Radiographer', speed: 1.3 },
   cleaner: { body: '#5f7f6a', title: 'Night Cleaner', speed: 1.1 },
   ghost: { body: '#e8f0ff', title: 'Ghost of a Patient (unreported since 1987)', speed: 0.8 },
   cat: { body: '#e08a2e', title: 'Hospital cat', speed: 1.6 },
@@ -336,6 +337,12 @@ export class NPC {
         if (this.dismiss) { this.goTo(10.5, 27); this.setState('leave'); return; }
         if (this.canSee() && this.cooldown <= 0) { this.setState('stalk'); return; }
         break;
+      case 'radiographer': {
+        // Stand at the console while a scan is running; otherwise potter about the department.
+        const spot = G.world.consoleSpots[this.scanner];
+        if (G.scan?.busy[this.scanner] || Math.random() < 0.6) { this.goTo(spot.x + (Math.random() - 0.5) * 0.4, spot.z + (Math.random() - 0.5) * 0.4); this.setState('walk'); return; }
+        break;
+      }
       case 'ghost': {
         const t = randomCellIn(Math.random() < 0.5 ? 'basement' : pick(['morgue', 'archive', 'olddept']));
         this.goTo(t.x, t.z);

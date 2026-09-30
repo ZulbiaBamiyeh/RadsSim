@@ -1,5 +1,5 @@
 // Floor plan of the hospital as a grid. 1 cell = 1 metre. Cell (x, y) spans world X [x, x+1], world Z [y, y+1].
-//   '#' wall   'F' fence / roof parapet   '.' indoor floor   'o' outdoor asphalt   'r' roof   ' ' void (nothing there)
+//   '#' wall   'G' lead-glass window wall   'F' fence / roof parapet   '.' indoor floor   'o' outdoor asphalt   'r' roof   ' ' void (nothing there)
 // Three disconnected regions share the grid, joined only by the lift:
 //   main building + ambulance bay (x 0-63), roof (x 65-95, y 0-14), basement (x 65-95, y 16-29).
 export const W = 96;
@@ -13,30 +13,38 @@ const fill = (x0, y0, x1, y1, c) => { for (let y = y0; y <= y1; y++) for (let x 
 fill(0, 0, 63, 25, '#');
 fill(1, 1, 8, 7, '.');    // reading room
 fill(10, 1, 17, 7, '.');  // tea room
-fill(19, 1, 28, 7, '.');  // CT
-fill(30, 1, 42, 7, '.');  // MRI
-fill(44, 1, 48, 7, '.');  // toilets
-fill(50, 1, 53, 7, '.');  // supply cupboard
+fill(19, 1, 21, 7, '.');  // CT control room
+fill(23, 1, 28, 7, '.');  // CT scan room
+fill(30, 1, 32, 7, '.');  // MRI control room
+fill(34, 1, 42, 7, '.');  // MRI scan room
+fill(44, 1, 53, 7, '.');  // X-ray room
 fill(55, 1, 62, 7, '.');  // on-call room
 fill(1, 9, 62, 12, '.');  // corridor (runs the full width)
 fill(1, 14, 20, 24, '.'); // resus
 fill(22, 14, 42, 24, '.'); // waiting room
 fill(44, 14, 51, 24, '.'); // chapel
-fill(53, 14, 62, 24, '.'); // cafe
+fill(53, 14, 62, 19, '.'); // cafe
+fill(53, 21, 57, 24, '.'); // staff toilets (through the cafe)
+fill(59, 21, 62, 24, '.'); // supply cupboard (through the cafe)
 fill(0, 26, 63, 29, 'F');
 fill(1, 26, 62, 28, 'o'); // ambulance bay
 const punch = (y, x0, x1) => { for (let x = x0; x <= x1; x++) grid[y][x] = '.'; };
 punch(8, 4, 5);   // reading room door
 punch(8, 13, 14); // tea room
-punch(8, 23, 24); // CT
-punch(8, 35, 36); // MRI
-punch(8, 46, 46); // toilets
-punch(8, 51, 51); // supply
+punch(8, 20, 20); // CT control room
+punch(8, 23, 24); // CT scan room
+punch(8, 31, 31); // MRI control room
+punch(8, 35, 36); // MRI scan room
+punch(8, 46, 47); // X-ray room
 punch(8, 58, 59); // on-call room
 punch(13, 4, 17); // resus (open plan)
 punch(13, 28, 31); // waiting room
 punch(13, 47, 48); // chapel
 punch(13, 57, 58); // cafe
+punch(20, 55, 55); // toilets
+punch(20, 60, 60); // supply
+// Control rooms look into the scan rooms through lead glass, with a door beside the window.
+for (const x of [22, 33]) { for (let y = 2; y <= 4; y++) grid[y][x] = 'G'; grid[6][x] = '.'; }
 punch(25, 8, 12); // ambulance doors
 punch(25, 30, 33); // front doors
 
@@ -53,21 +61,24 @@ fill(66, 25, 80, 28, '.'); // boiler room
 fill(82, 25, 94, 28, '.'); // old radiology dept
 punch(20, 71, 72); punch(20, 86, 87); punch(24, 72, 73); punch(24, 88, 89);
 
-export const DOOR_ROWS = [[8, 1, 62], [13, 1, 62], [25, 1, 62], [20, 66, 94], [24, 66, 94]];
+export const DOOR_ROWS = [[8, 1, 62], [13, 1, 62], [25, 1, 62], [20, 53, 62], [20, 66, 94], [24, 66, 94]];
 
 export const ZONES = [
   { id: 'reading', name: 'Radiology Reading Room', x0: 1, y0: 1, x1: 8, y1: 7, floor: '#39424e', fuel: 0.7 },
   { id: 'tea', name: 'Staff Tea Room', x0: 10, y0: 1, x1: 17, y1: 7, floor: '#b9a47e', fuel: 0.55 },
-  { id: 'ct', name: 'CT', x0: 19, y0: 1, x1: 28, y1: 7, floor: '#a9c4d6', fuel: 0.3 },
-  { id: 'mri', name: 'MRI (Zone 4)', x0: 30, y0: 1, x1: 42, y1: 7, floor: '#b8b0d0', fuel: 0.3 },
-  { id: 'toilets', name: 'Staff Toilets', x0: 44, y0: 1, x1: 48, y1: 7, floor: '#dfe6ea', fuel: 0.2 },
-  { id: 'supply', name: 'Supply Cupboard', x0: 50, y0: 1, x1: 53, y1: 7, floor: '#a89f8a', fuel: 1.3 },
+  { id: 'ctctl', name: 'CT Control Room', x0: 19, y0: 1, x1: 22, y1: 7, floor: '#6f8ea3', fuel: 0.4 },
+  { id: 'ct', name: 'CT', x0: 23, y0: 1, x1: 28, y1: 7, floor: '#a9c4d6', fuel: 0.3 },
+  { id: 'mrictl', name: 'MRI Control Room', x0: 30, y0: 1, x1: 33, y1: 7, floor: '#7d7699', fuel: 0.4 },
+  { id: 'mri', name: 'MRI (Zone 4)', x0: 34, y0: 1, x1: 42, y1: 7, floor: '#b8b0d0', fuel: 0.3 },
+  { id: 'xray', name: 'X-ray Room', x0: 44, y0: 1, x1: 53, y1: 7, floor: '#b5c9b0', fuel: 0.3 },
+  { id: 'toilets', name: 'Staff Toilets', x0: 53, y0: 21, x1: 57, y1: 24, floor: '#dfe6ea', fuel: 0.2 },
+  { id: 'supply', name: 'Supply Cupboard', x0: 59, y0: 21, x1: 62, y1: 24, floor: '#a89f8a', fuel: 1.3 },
   { id: 'oncall', name: 'On-call Room', x0: 55, y0: 1, x1: 62, y1: 7, floor: '#8c7b6b', fuel: 0.7 },
   { id: 'corridor', name: 'Main Corridor', x0: 1, y0: 8, x1: 62, y1: 13, floor: '#9fb89a', fuel: 0.3 },
   { id: 'resus', name: 'Resus', x0: 1, y0: 14, x1: 20, y1: 24, floor: '#9fc0cf', fuel: 0.5 },
   { id: 'waiting', name: 'Waiting Room', x0: 22, y0: 14, x1: 42, y1: 25, floor: '#8fbab3', fuel: 0.6 },
   { id: 'chapel', name: 'Chapel', x0: 44, y0: 14, x1: 51, y1: 24, floor: '#7d6a8c', fuel: 0.9 },
-  { id: 'cafe', name: 'Cafe (closed)', x0: 53, y0: 14, x1: 62, y1: 24, floor: '#c9b27c', fuel: 0.5 },
+  { id: 'cafe', name: 'Cafe (closed)', x0: 53, y0: 14, x1: 62, y1: 20, floor: '#c9b27c', fuel: 0.5 },
   { id: 'outside', name: 'Ambulance Bay', x0: 1, y0: 25, x1: 62, y1: 28, floor: '#3d3f44', fuel: 0 },
   { id: 'roof', name: 'Roof / Helipad', x0: 66, y0: 1, x1: 94, y1: 13, floor: '#4a4d52', fuel: 0, outdoor: true },
   { id: 'morgue', name: 'Morgue', x0: 66, y0: 17, x1: 77, y1: 19, floor: '#b8c4c8', fuel: 0.2 },
@@ -90,7 +101,7 @@ for (let y = 0; y < H; y++) {
   }
 }
 
-function isWallChar(c) { return c === '#' || c === 'F'; }
+function isWallChar(c) { return c === '#' || c === 'F' || c === 'G'; }
 
 export function inBounds(x, y) { return x >= 0 && y >= 0 && x < W && y < H; }
 export function isWall(x, y) { return !inBounds(x, y) || isWallChar(grid[y][x]); }

@@ -166,7 +166,7 @@ export class Props {
       if (T.metal && !G.quenched) {
         const dx = mag.x - p.pos.x, dy = mag.y - p.pos.y, dz = mag.z - p.pos.z;
         const d2 = dx * dx + dy * dy + dz * dz;
-        if (d2 < 81 && p.pos.z < 8.6 && p.pos.x > 29.5) {
+        if (d2 < 81 && p.pos.z < 8.6 && p.pos.x > 33.6) {
           p.pulled = true;
           const d = Math.sqrt(d2);
           if (d < 0.7) {

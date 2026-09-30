@@ -15,7 +15,7 @@ const SUS_BY_PATH = {
   freeair: 'a perforation', collection: 'a collection', sbo: 'a bowel obstruction', aaa: 'a leaking aneurysm',
   appendicitis: 'appendicitis', renal_stone: 'an obstructing kidney stone', edh: 'a bleed', sdh: 'a bleed',
   infarct: 'a stroke', sah: 'a subarachnoid bleed', pe: 'a PE', ptx: 'a pneumothorax', mass: 'a tumour',
-  consolidation: 'a pneumonia, or maybe a PE', necfasc: 'necrotising fasciitis', effusion: 'a septic joint',
+  consolidation: 'a pneumonia, or maybe a PE', necfasc: 'necrotising fasciitis', effusion: 'a septic joint', pleural: 'a pleural effusion',
 };
 function suspicion(c) {
   if (SUS_BY_PATH[c.path]) return SUS_BY_PATH[c.path];
@@ -56,6 +56,7 @@ const FACTS = {
   fork: ['They swallowed a fork. A whole fork.', 'It was a dare. The fork is now inside them.'],
   pager: ['The pager is still beeping. From inside them.', 'It went off twice while I was examining them.'],
   sandwich: ['There is a sandwich somewhere a sandwich should not be.', 'They say it "went down wrong". They want it back.'],
+  pleural: ['Dull to percussion at the right base and they\'re short of breath.', 'Their legs are swollen and they can\'t lie flat.'],
   necfasc: ['Pain way out of proportion, and I think I can feel crepitus.', 'The redness has spread past the line I drew an hour ago.'],
   effusion: ['Hot, swollen hip, a fever of 39 and a CRP of 180.', 'They won\'t let me move it at all. It\'s held flexed and externally rotated.'],
 };
@@ -64,6 +65,8 @@ const VAGUE = {
   head: 'They bumped their head and the family is very worried.',
   chest: 'Some chest pain. Obs are normal, but I just want to be sure.',
   us: 'Their hip is sore. They did walk in, to be fair.',
+  xr: 'They\'ve had a bit of a cough. Obs are fine.',
+  mr: 'They were dizzy earlier. The CT was normal and they seem fine now.',
 };
 
 // Your sensible arguments. `weak` reply = the request really is flimsy; `strong` = the patient is actually sick.
@@ -76,7 +79,7 @@ const SENSIBLE = [
     strong: () => 'Yes. My consultant examined them and wants the scan tonight.' },
   { id: 'manage', text: '"How will this scan change what you do tonight?"', weakPower: 1.6, strongPower: 0.5,
     weak: () => 'It would... reassure everyone? Mostly me.',
-    strong: (c) => ({ abdo: 'If it\'s positive they go to theatre tonight. If not, the surgeons won\'t even see them.', head: 'If there\'s a bleed, neurosurgery needs to know now.', chest: 'If it\'s a PE they need anticoagulation now. If it\'s not, we keep looking.', us: 'If there\'s pus, it needs washing out tonight.' })[c.modality] },
+    strong: (c) => ({ abdo: 'If it\'s positive they go to theatre tonight. If not, the surgeons won\'t even see them.', head: 'If there\'s a bleed, neurosurgery needs to know now.', chest: 'If it\'s a PE they need anticoagulation now. If it\'s not, we keep looking.', us: 'If there\'s pus, it needs washing out tonight.', xr: 'It decides whether they need a drain or antibiotics tonight.', mr: 'If it\'s a stroke, the stroke team change everything tonight.' })[c.modality] },
   { id: 'previous', text: '"Have you checked their previous imaging?"', weakPower: 1.8, strongPower: 0.3,
     weak: () => 'Oh. They had the same scan last month. It was normal.',
     strong: () => 'Nothing recent. Their last scan was years ago.' },
@@ -94,6 +97,12 @@ const ALT = {
   us: { id: 'alt', text: '"Have they had an X-ray of the hip?"', weakPower: 1.4, strongPower: 0.4,
     weak: () => 'Yes. Normal. Bit of arthritis, that\'s all.',
     strong: () => 'Normal. Which doesn\'t rule out a septic joint, as you know.' },
+  xr: { id: 'alt', text: '"Does this chest X-ray really need doing at 3am?"', weakPower: 1.6, strongPower: 0.4,
+    weak: () => 'Honestly? It could wait for the morning.',
+    strong: (c) => `Yes. ${FACTS[c.path][1]}` },
+  mr: { id: 'alt', text: '"Can the MRI wait until the morning list?"', weakPower: 1.5, strongPower: 0.4,
+    weak: () => 'I mean... neuro just said "tonight would be nice".',
+    strong: () => 'The stroke team want it now. It changes their treatment.' },
   head: { id: 'alt', text: '"Does this even meet the CT head rules?"', weakPower: 1.6, strongPower: 0.4,
     weak: () => 'Um. Not strictly. They\'re GCS 15 and chatting away.',
     strong: (c) => `It does. ${FACTS[c.path][1]}` },
@@ -137,7 +146,7 @@ function formArguments(c) {
   }
   out.push({ id: 'egfr', text: '"Has anyone checked their kidney function for contrast?"', valid: flagged('eGFR 24, contrast not approved'),
     yes: 'Oh. eGFR 24. I didn\'t see that. I\'ll speak to the renal team first.',
-    no: c.modality === 'head' ? 'It\'s a non-contrast CT head. There\'s no contrast.' : c.modality === 'us' ? 'It\'s an ultrasound. There\'s no contrast.' : `Their eGFR is ${70 + (c.seed % 25)}. It's fine.` });
+    no: c.modality === 'head' ? 'It\'s a non-contrast CT head. There\'s no contrast.' : c.modality === 'us' ? 'It\'s an ultrasound. There\'s no contrast.' : c.modality === 'xr' ? 'It\'s a chest X-ray. There\'s no contrast.' : c.modality === 'mr' ? 'It\'s a non-contrast MRI.' : `Their eGFR is ${70 + (c.seed % 25)}. It's fine.` });
   out.push({ id: 'pager', text: '"There\'s no pager number. How would I call you with the result?"', valid: flagged('Pager field blank (mandatory)'),
     yes: 'Oops. I left it blank. I\'ll fix the form and come back.',
     no: `It's on the form. ${c.pager}. Bottom right.` });
@@ -150,7 +159,7 @@ const WILD = [
     win: 'You can run OUT? Oh no. I\'ll tell the others.', fail: 'The scanner makes X-rays from electricity. You can\'t run out.' },
   { id: 'odd', text: '"After midnight the scanner only does patients with odd hospital numbers."', rumor: 'CT only does odd hospital numbers at night now?',
     win: '', fail: '' },
-  { id: 'mercury', text: '"Mercury is in retrograde. The contrast won\'t flow."', rumor: 'Contrast doesn\'t flow during Mercury retrograde, did you know?', skip: (c) => c.modality === 'head',
+  { id: 'mercury', text: '"Mercury is in retrograde. The contrast won\'t flow."', rumor: 'Contrast doesn\'t flow during Mercury retrograde, did you know?', skip: (c) => ['head', 'us', 'xr', 'mr'].includes(c.modality),
     win: 'Is THAT why the pump alarmed earlier? Okay. I\'ll wait.', fail: 'That\'s astrology. The contrast pump doesn\'t care.' },
   { id: 'quota', text: '"The physicist says we\'ve used up this month\'s X-rays."', rumor: 'We\'ve used up this month\'s X-rays apparently.',
     win: 'There\'s a monthly allowance? Nobody told ED. I\'ll let them know.', fail: 'There\'s no monthly quota. The physicist literally told us that at teaching.' },
@@ -166,8 +175,8 @@ const WILD = [
     win: 'I\'m not crossing a picket line. I\'ll wait.', fail: 'Scanners can\'t join unions.' },
   { id: 'powers', text: '"That much radiation could give them superpowers. Liability issue."', rumor: 'Too much CT gives you superpowers. Liability thing.',
     win: 'That\'s a lawsuit waiting to happen. Good point.', fail: 'If that were true, the radiographers could fly by now.' },
-  { id: 'helium', text: '"We\'re low on helium." (That\'s the MRI. They won\'t know.)', rumor: 'Radiology is out of helium, so no CTs tonight?',
-    win: 'Oh no, the helium. Okay, I\'ll hold off.', fail: 'Helium is for the MRI. This is a CT.' },
+  { id: 'helium', text: '"We\'re low on helium tonight."', rumor: 'Radiology is out of helium, so no CTs tonight?',
+    win: 'Oh no, the helium. Okay, I\'ll hold off.', fail: 'Helium is for the MRI. This isn\'t an MRI.' },
 ];
 
 export function startArgument(G, c, reg, { onWin, onLose, onAccept }) {
@@ -306,7 +315,11 @@ export function startArgument(G, c, reg, { onWin, onLose, onAccept }) {
       used.add(w.id);
       line('you', w.text);
       let ok, text;
-      if (w.id === 'odd') {
+      if (w.id === 'helium' && c.modality === 'mr') {
+        // For an MRI request this one might actually be true.
+        ok = !!G.quenched || Math.random() < 0.15;
+        text = G.quenched ? 'Oh. Someone quenched the magnet tonight, didn\'t they. Fine. No MRI.' : ok ? 'Is THAT why it was hissing? Okay, I\'ll hold off.' : 'I walked past the MRI. It\'s humming away.';
+      } else if (w.id === 'odd') {
         // They check the hospital number on the form.
         const d = +c.urn.slice(-1);
         ok = d % 2 === 0 && Math.random() < 0.75;
@@ -342,7 +355,7 @@ export function startArgument(G, c, reg, { onWin, onLose, onAccept }) {
       await reply('reg', `Sorry to wake you. The radiologist wants to know why ${first} needs a ${c.study}.`);
       if (c.joke) { G.stats.argumentsLost++; await reply('cons', 'They swallowed a WHAT? Scan them. Obviously.'); finish('The consultant sided with the registrar.', 'lose', onLose); }
       else if (strong) { G.stats.argumentsLost++; await reply('cons', `${sus[0].toUpperCase() + sus.slice(1)}? With that history? Yes, scan them tonight. And who is this radiologist?`); finish('The consultant sided with the registrar. Awkward.', 'lose', onLose); }
-      else if (Math.random() < 0.65) { G.stats.argumentsWon++; await reply('cons', 'Soft abdomen, normal obs? Yeah, fair enough. Review them in the morning.'.replace('Soft abdomen', c.modality === 'head' ? 'GCS 15' : c.modality === 'chest' ? 'Low risk' : c.modality === 'us' ? 'Walked in with a CRP of 12' : 'Soft abdomen')); finish('The consultant agreed with you. The request is withdrawn.', 'win', () => onWin('consultant')); }
+      else if (Math.random() < 0.65) { G.stats.argumentsWon++; await reply('cons', 'Soft abdomen, normal obs? Yeah, fair enough. Review them in the morning.'.replace('Soft abdomen', c.modality === 'head' ? 'GCS 15' : c.modality === 'chest' ? 'Low risk' : c.modality === 'us' ? 'Walked in with a CRP of 12' : c.modality === 'xr' ? 'Normal sats, no fever' : c.modality === 'mr' ? 'Symptoms resolved and a normal CT' : 'Soft abdomen')); finish('The consultant agreed with you. The request is withdrawn.', 'win', () => onWin('consultant')); }
       else { G.stats.argumentsLost++; await reply('cons', 'It\'s 3am. I don\'t care. Just do the scan, please.'); finish('The consultant just wants to go back to sleep. You\'re doing it.', 'lose', onLose); }
     } });
     choices.push({ id: 'fine', text: '"Fine. I\'ll do it."', ghost: true, fn: async () => {
