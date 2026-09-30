@@ -466,8 +466,8 @@ export function buildWorld(scene) {
 
   // --- Chapel ---
   for (const z of [15.6, 17.1, 18.6, 20.1]) {
-    burnBox(44.5, z, 47.3, z + 0.55, 0.5, '#6b4a2e', 1.2);
-    burnBox(48.7, z, 51.5, z + 0.55, 0.5, '#6b4a2e', 1.2);
+    burnBox(44.5, z, 47.05, z + 0.55, 0.5, '#6b4a2e', 1.2);
+    burnBox(48.95, z, 51.5, z + 0.55, 0.5, '#6b4a2e', 1.2);
   }
   burnBox(46.2, 23.2, 49.8, 24.0, 1.0, '#e9e0c8', 1.4, 'altar');
   furniture(scene, 44.4, 23.3, 45.2, 24.0, 1.1, '#3b2d24');

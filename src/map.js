@@ -107,8 +107,10 @@ function markStatic(s, d) {
   for (let y = Math.floor(s.minZ); y < Math.ceil(s.maxZ); y++) {
     for (let x = Math.floor(s.minX); x < Math.ceil(s.maxX); x++) {
       if (!inBounds(x, y)) continue;
-      // Only block a cell if the box covers its centre.
-      if (x + 0.5 > s.minX && x + 0.5 < s.maxX && y + 0.5 > s.minZ && y + 0.5 < s.maxZ) blocked[y * W + x] += d;
+      // Block a cell if the box comes within an NPC's radius of its centre (otherwise NPCs path to a
+      // cell centre they can never physically reach and get stuck against the furniture).
+      const m = 0.22;
+      if (s.minX < x + 1 - m && s.maxX > x + m && s.minZ < y + 1 - m && s.maxZ > y + m) blocked[y * W + x] += d;
     }
   }
 }

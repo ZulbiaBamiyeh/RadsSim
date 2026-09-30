@@ -1,6 +1,6 @@
 // ED inhabitants: patients, nurses, registrars who want their scans, security, firefighters, a cat.
 import * as THREE from 'three';
-import { collideCircle, findPath, randomCellIn, zoneAtWorld, ZONE_BY_ID, regionAt, walkable, W } from './map.js';
+import { collideCircle, findPath, randomCellIn, zoneAtWorld, ZONE_BY_ID, regionAt, walkable, nearestWalkable, W } from './map.js';
 import { mat } from './world.js';
 import { sfx } from './audio.js';
 
@@ -362,7 +362,25 @@ export class NPC {
     const wp = this.path[0];
     const dx = wp.x - this.pos.x, dz = wp.z - this.pos.y;
     const d = Math.hypot(dx, dz);
-    if (d < arrive) { this.path.shift(); return !this.path.length; }
+    if (d < arrive) { this.path.shift(); this.progT = 0; return !this.path.length; }
+    // Stuck detection: no progress toward the waypoint for a while (pinned against furniture or a crowd).
+    if (this.wpRef !== wp || d < (this.bestD ?? Infinity) - 0.05) { this.wpRef = wp; this.bestD = d; this.progT = 0; }
+    else this.progT = (this.progT || 0) + dt;
+    if (this.progT > 0.9) {
+      this.progT = 0;
+      this.bestD = Infinity;
+      this.stuckN = (this.stuckN || 0) + 1;
+      const last = this.path[this.path.length - 1];
+      if (this.path.length === 1 && d < 1.4) { this.path.shift(); this.stuckN = 0; return true; } // close enough
+      // Re-plan from where we actually are; if that keeps failing, step to the nearest open cell.
+      this.path = findPath(this.pos.x, this.pos.y, last.x, last.z);
+      if (this.stuckN > 2) {
+        const n = nearestWalkable(Math.floor(this.pos.x), Math.floor(this.pos.y));
+        if (n) { this.pos.set(n.x + 0.5, n.y + 0.5); this.path = findPath(this.pos.x, this.pos.y, last.x, last.z); }
+        this.stuckN = 0;
+      }
+      return !this.path || !this.path.length;
+    }
     this.vel.set((dx / d) * speed, (dz / d) * speed);
     this.face = Math.atan2(dx, dz);
     return false;
