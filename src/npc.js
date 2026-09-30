@@ -181,6 +181,7 @@ export class NPC {
     }
     // Hair / role accessories
     const hairC = pick(['#2b1b10', '#4a2f1b', '#111', '#8a6a3a', '#c8c8c8', '#6b2a12']);
+    this.hairColor = hairC;
     if (this.role !== 'firefighter' && this.role !== 'security') {
       const hair = new THREE.Mesh(new THREE.SphereGeometry(0.25, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2), mat(hairC));
       hair.position.y = 1.65;
@@ -204,8 +205,10 @@ export class NPC {
     if (this.role === 'firefighter') { acc(new THREE.SphereGeometry(0.29, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2), '#f2c21b', 0, 1.7, 0); acc(new THREE.BoxGeometry(0.56, 0.05, 0.6), '#dcdcdc', 0, 0.95, 0).visible = true; }
     if (this.role === 'nic') acc(new THREE.BoxGeometry(0.12, 0.08, 0.02), '#ffd400', 0.12, 1.2, 0.27);
     if (this.role === 'patient') acc(new THREE.TorusGeometry(0.075, 0.015, 6, 12), '#fff', 0.33, 0.73, 0, Math.PI / 2);
-    this.afro = new THREE.Mesh(new THREE.SphereGeometry(0.36, 10, 8), mat('#111'));
-    this.afro.position.y = 1.78;
+    // Soot "afro": sits on top of and behind the head so the face stays visible.
+    this.afro = new THREE.Mesh(new THREE.SphereGeometry(0.3, 10, 8), mat('#111'));
+    this.afro.position.set(0, 1.86, -0.06);
+    this.afro.scale.set(1, 0.75, 1);
     this.afro.visible = false;
     body.add(this.afro);
     this.hitH = 1.9;
@@ -250,7 +253,23 @@ export class NPC {
 
   // Defibrillated: hair stands on end, they fly backwards.
   zap(dx, dz) {
-    if (this.afro) { this.afro.visible = true; this.afro.scale.set(1.3, 1.5, 1.3); }
+    // Hair stands on end: a crown of spikes in their own hair colour.
+    if (!this.frizz && this.head) {
+      this.frizz = new THREE.Group();
+      const m = mat(this.hairColor || '#2b1b10');
+      for (let i = 0; i < 14; i++) {
+        const a = (i / 14) * Math.PI * 2, tilt = 0.35 + (i % 3) * 0.2;
+        const spike = new THREE.Mesh(new THREE.ConeGeometry(0.035, 0.28, 5), m);
+        spike.position.set(Math.cos(a) * 0.13, 0.12, Math.sin(a) * 0.13 - 0.02);
+        spike.rotation.set(Math.sin(a) * tilt, 0, -Math.cos(a) * tilt);
+        this.frizz.add(spike);
+      }
+      const top = new THREE.Mesh(new THREE.ConeGeometry(0.04, 0.32, 5), m);
+      top.position.set(0, 0.2, -0.02);
+      this.frizz.add(top);
+      this.frizz.position.y = 1.72;
+      this.body.add(this.frizz);
+    }
     this.knock(dx * 7, dz * 7, true, 5, this.role === 'cat' ? 'MRRRZZZT' : pick(['BZZZZT', 'AAAARGH', 'I DON\'T HAVE A PULSE PROBLEM!', 'My fillings!']));
   }
 
