@@ -38,6 +38,8 @@
     <dt>Left click</dt><dd>Pick up / throw · shove people · launch a bed you're pushing</dd>
     <dt>Right click</dt><dd>Use held item: spray extinguisher (look down to fly), flick lighter, eat, drink</dd>
     <dt>Q</dt><dd>Drop</dd>
+    <dt>F</dt><dd>Kick (people, props, beds). Sprint into people to tackle them. Defib paddles live on the resus crash cart.</dd>
+    <dt>RiskMann</dt><dd>Side computer in the reading room: file incident reports on people you don't like. Accurate ones get upheld; vexatious ones come back on you.</dd>
     <dt>At PACS</dt><dd>Wheel or drag to scroll slices · right-drag for window/level · 1–4 presets · M to mark the lesion · Esc to stand up</dd>
     <dt class="touch-only">On a phone</dt><dd class="touch-only">Left stick moves (push it fully to run) · drag anywhere to look · Grab/Throw, E (use, talk, push a bed), the item button (spray, flick, eat), Jump, Drop. At PACS, drag the image to scroll and use the W/L and Mark buttons.</dd>
     <dt>Hiding</dt><dd>E at a hiding spot (under the desk, toilet stall, laundry hamper, morgue drawer…). E again to come out. Lock the reading-room door and registrars have to knock.</dd>
@@ -67,6 +69,28 @@
     </div>
     <div id="argue-log"></div>
     <div id="argue-opts"></div>
+  </div>
+</div>
+
+<div id="riskman" hidden>
+  <div class="rm-window">
+    <div class="rm-bar"><b>RiskMann<sup>™</sup></b> <span>Incident Management · RadsSim General (a parody, not affiliated with any real product)</span><button id="rm-close">Close</button></div>
+    <div class="rm-tabs"><button data-rmtab="file" class="on">File a report</button><button data-rmtab="mine">My reports (<span id="rm-count-mine">0</span>)</button><button data-rmtab="about">Reports about you (<span id="rm-count-about">0</span>)</button></div>
+    <div class="rm-pane" data-rmpane="file">
+      <label for="rm-person">Person involved</label>
+      <select id="rm-person"></select>
+      <label for="rm-category">Incident category</label>
+      <select id="rm-category"></select>
+      <span class="rm-label">Severity</span>
+      <div id="rm-sev" class="rm-sev"></div>
+      <label for="rm-desc">Description of incident</label>
+      <textarea id="rm-desc" rows="3"></textarea>
+      <label class="rm-check"><input type="checkbox" id="rm-faith" checked> I confirm this report is made in good faith</label>
+      <button id="rm-submit">Submit report</button>
+      <div id="rm-result"></div>
+    </div>
+    <div class="rm-pane" data-rmpane="mine" hidden><table><thead><tr><th>Ref</th><th>Person</th><th>Category</th><th>Severity</th><th>Status</th></tr></thead><tbody id="rm-mine"></tbody></table></div>
+    <div class="rm-pane" data-rmpane="about" hidden><table><thead><tr><th>Ref</th><th>Filed by</th><th>Category</th><th>Notes</th></tr></thead><tbody id="rm-about"></tbody></table></div>
   </div>
 </div>
 

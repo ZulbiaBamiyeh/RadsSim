@@ -15,12 +15,14 @@ const SUS_BY_PATH = {
   freeair: 'a perforation', collection: 'a collection', sbo: 'a bowel obstruction', aaa: 'a leaking aneurysm',
   appendicitis: 'appendicitis', renal_stone: 'an obstructing kidney stone', edh: 'a bleed', sdh: 'a bleed',
   infarct: 'a stroke', sah: 'a subarachnoid bleed', pe: 'a PE', ptx: 'a pneumothorax', mass: 'a tumour',
-  consolidation: 'a pneumonia, or maybe a PE',
+  consolidation: 'a pneumonia, or maybe a PE', necfasc: 'necrotising fasciitis', effusion: 'a septic joint',
 };
 function suspicion(c) {
   if (SUS_BY_PATH[c.path]) return SUS_BY_PATH[c.path];
   const q = c.question.toLowerCase();
   if (c.joke) return 'a swallowed foreign body';
+  if (c.modality === 'us' || q.includes('septic')) return 'a septic joint';
+  if (q.includes('nec fasc')) return 'necrotising fasciitis';
   if (q.includes('perforation')) return 'a perforation';
   if (q.includes('collection')) return 'a collection';
   if (q.includes('sbo')) return 'a bowel obstruction';
@@ -54,11 +56,14 @@ const FACTS = {
   fork: ['They swallowed a fork. A whole fork.', 'It was a dare. The fork is now inside them.'],
   pager: ['The pager is still beeping. From inside them.', 'It went off twice while I was examining them.'],
   sandwich: ['There is a sandwich somewhere a sandwich should not be.', 'They say it "went down wrong". They want it back.'],
+  necfasc: ['Pain way out of proportion, and I think I can feel crepitus.', 'The redness has spread past the line I drew an hour ago.'],
+  effusion: ['Hot, swollen hip, a fever of 39 and a CRP of 180.', 'They won\'t let me move it at all. It\'s held flexed and externally rotated.'],
 };
 const VAGUE = {
   abdo: 'Their abdomen is soft, but they say it really hurts.',
   head: 'They bumped their head and the family is very worried.',
   chest: 'Some chest pain. Obs are normal, but I just want to be sure.',
+  us: 'Their hip is sore. They did walk in, to be fair.',
 };
 
 // Your sensible arguments. `weak` reply = the request really is flimsy; `strong` = the patient is actually sick.
@@ -71,7 +76,7 @@ const SENSIBLE = [
     strong: () => 'Yes. My consultant examined them and wants the scan tonight.' },
   { id: 'manage', text: '"How will this scan change what you do tonight?"', weakPower: 1.6, strongPower: 0.5,
     weak: () => 'It would... reassure everyone? Mostly me.',
-    strong: (c) => ({ abdo: 'If it\'s positive they go to theatre tonight. If not, the surgeons won\'t even see them.', head: 'If there\'s a bleed, neurosurgery needs to know now.', chest: 'If it\'s a PE they need anticoagulation now. If it\'s not, we keep looking.' })[c.modality] },
+    strong: (c) => ({ abdo: 'If it\'s positive they go to theatre tonight. If not, the surgeons won\'t even see them.', head: 'If there\'s a bleed, neurosurgery needs to know now.', chest: 'If it\'s a PE they need anticoagulation now. If it\'s not, we keep looking.', us: 'If there\'s pus, it needs washing out tonight.' })[c.modality] },
   { id: 'previous', text: '"Have you checked their previous imaging?"', weakPower: 1.8, strongPower: 0.3,
     weak: () => 'Oh. They had the same scan last month. It was normal.',
     strong: () => 'Nothing recent. Their last scan was years ago.' },
@@ -86,10 +91,37 @@ const ALT = {
   chest: { id: 'alt', text: '"Would a chest X-ray answer this?"', weakPower: 1.5, strongPower: 0.4,
     weak: () => 'The X-ray was normal, actually. Maybe that\'s enough.',
     strong: (c) => (c.path === 'pe' ? 'The X-ray was clear. That\'s exactly why I\'m worried about a PE.' : 'The X-ray looks odd and we need to know what it is.') },
+  us: { id: 'alt', text: '"Have they had an X-ray of the hip?"', weakPower: 1.4, strongPower: 0.4,
+    weak: () => 'Yes. Normal. Bit of arthritis, that\'s all.',
+    strong: () => 'Normal. Which doesn\'t rule out a septic joint, as you know.' },
   head: { id: 'alt', text: '"Does this even meet the CT head rules?"', weakPower: 1.6, strongPower: 0.4,
     weak: () => 'Um. Not strictly. They\'re GCS 15 and chatting away.',
     strong: (c) => `It does. ${FACTS[c.path][1]}` },
 };
+
+// Arguments that only make sense for particular requests. `clinical` means that, if the patient really is
+// sick, the argument wins by sending them straight to theatre (no scan needed, and no M&M for you).
+const SPECIAL = [
+  { id: 'alvarado', when: (c, s) => s === 'appendicitis', text: '"What\'s the Alvarado?"', weakPower: 2.0, strongPower: 0.3,
+    weak: () => 'Um... about a 3? Mild tenderness, no fever, normal white count.',
+    strong: () => 'Eight. Migratory pain, anorexia, RIF tenderness, rebound, a fever and a white count of 15.' },
+  { id: 'clinapp', when: (c, s) => s === 'appendicitis', after: 'alvarado', clinical: true,
+    text: '"So you\'ve got clinically diagnosed appendicitis. Do they need a scan?"',
+    weak: () => 'Well... it\'s not really a clinical diagnosis. That\'s the whole point of the scan.',
+    strongWin: '...Huh. The surgeons did say they\'d take a high Alvarado straight to theatre. I\'ll call them.',
+    strongNotYet: 'It\'s not THAT clear-cut. It could be a collection or something else.' },
+  { id: 'effusion', when: (c) => c.modality === 'us', text: '"You want a joint aspirate. How do you know there\'s an effusion?"', weakPower: 2.2, strongPower: 0.3,
+    weak: () => '...I don\'t, really. I couldn\'t feel one. I just assumed.',
+    strong: () => 'Bedside ultrasound in ED showed a big effusion. I just can\'t get the needle in.' },
+  { id: 'ortho', when: (c) => c.modality === 'us', clinical: true,
+    text: '"If you\'re suspecting a septic joint, why aren\'t ortho taking them to theatre?"',
+    weak: () => 'Because... it\'s probably not septic. Their CRP is 12.', weakPower: 1.8,
+    strongWin: '...Ortho did say they\'d wash it out if it\'s pus. Fine. I\'ll push them to take it straight to theatre.' },
+  { id: 'necfasc', when: (c, s) => s === 'necrotising fasciitis', clinical: true,
+    text: '"Nec fasc is a clinical diagnosis."',
+    weak: () => 'Honestly, it\'s probably just cellulitis. I wanted to be sure.', weakPower: 1.8,
+    strongWin: '...You\'re right. If I\'m this worried, they need theatre, not CT. I\'m calling the surgeons.' },
+];
 
 // Form-based arguments: only strong if the form actually has the problem.
 function formArguments(c) {
@@ -103,9 +135,9 @@ function formArguments(c) {
     out.push({ id: 'preg', text: '"Is there any chance they\'re pregnant?"', valid: false,
       no: c.sex === 'M' ? 'The patient is a man.' : `She's ${c.age}. It's not a concern.` });
   }
-  out.push({ id: 'egfr', text: '"Has anyone checked their kidney function for contrast?"', valid: c.modality !== 'head' && flagged('eGFR 24, contrast not approved'),
+  out.push({ id: 'egfr', text: '"Has anyone checked their kidney function for contrast?"', valid: flagged('eGFR 24, contrast not approved'),
     yes: 'Oh. eGFR 24. I didn\'t see that. I\'ll speak to the renal team first.',
-    no: c.modality === 'head' ? 'It\'s a non-contrast CT head. There\'s no contrast.' : `Their eGFR is ${70 + (c.seed % 25)}. It's fine.` });
+    no: c.modality === 'head' ? 'It\'s a non-contrast CT head. There\'s no contrast.' : c.modality === 'us' ? 'It\'s an ultrasound. There\'s no contrast.' : `Their eGFR is ${70 + (c.seed % 25)}. It's fine.` });
   out.push({ id: 'pager', text: '"There\'s no pager number. How would I call you with the result?"', valid: flagged('Pager field blank (mandatory)'),
     yes: 'Oops. I left it blank. I\'ll fix the form and come back.',
     no: `It's on the form. ${c.pager}. Bottom right.` });
@@ -224,8 +256,31 @@ export function startArgument(G, c, reg, { onWin, onLose, onAccept }) {
     if (!alive) return;
     opts.innerHTML = '';
     const choices = [];
+    // Case-specific arguments first (at most two).
+    for (const a of SPECIAL.filter((x) => x.when(c, sus) && !used.has(x.id)).slice(0, 2)) {
+      choices.push({ id: a.id, text: a.text, fn: () => exchange(async () => {
+        used.add(a.id);
+        line('you', a.text);
+        if (a.clinical && strong) {
+          if (!a.after || used.has(a.after) || Math.random() < 0.5) {
+            await reply('reg', a.strongWin);
+            settled = true;
+            G.stats.argumentsWon++;
+            G.stats.clinicalCalls++;
+            finish('Good call. The patient goes straight to theatre without a scan.', 'win', () => onWin('clinical'));
+          } else {
+            await reply('reg', a.strongNotYet);
+            resolve -= 0.5;
+          }
+          return;
+        }
+        if (a.clinical) { await reply('reg', a.weak(c, sus)); resolve -= a.weakPower || -0.5; return; }
+        await reply('reg', strong ? a.strong(c, sus) : a.weak(c, sus));
+        resolve -= strong ? a.strongPower : a.weakPower;
+      }) });
+    }
     const sensible = SENSIBLE.filter((a) => !used.has(a.id)).sort(() => Math.random() - 0.5);
-    for (const a of [sensible[0], used.has('alt') ? sensible[1] : ALT[c.modality]].filter(Boolean)) {
+    for (const a of (choices.length ? [used.has('alt') ? sensible[0] : ALT[c.modality]] : [sensible[0], used.has('alt') ? sensible[1] : ALT[c.modality]]).filter(Boolean)) {
       choices.push({ id: a.id, text: a.text, fn: () => exchange(async () => {
         used.add(a.id);
         line('you', a.text);
@@ -287,7 +342,7 @@ export function startArgument(G, c, reg, { onWin, onLose, onAccept }) {
       await reply('reg', `Sorry to wake you. The radiologist wants to know why ${first} needs a ${c.study}.`);
       if (c.joke) { G.stats.argumentsLost++; await reply('cons', 'They swallowed a WHAT? Scan them. Obviously.'); finish('The consultant sided with the registrar.', 'lose', onLose); }
       else if (strong) { G.stats.argumentsLost++; await reply('cons', `${sus[0].toUpperCase() + sus.slice(1)}? With that history? Yes, scan them tonight. And who is this radiologist?`); finish('The consultant sided with the registrar. Awkward.', 'lose', onLose); }
-      else if (Math.random() < 0.65) { G.stats.argumentsWon++; await reply('cons', 'Soft abdomen, normal obs? Yeah, fair enough. Review them in the morning.'.replace('Soft abdomen', c.modality === 'head' ? 'GCS 15' : c.modality === 'chest' ? 'Low risk' : 'Soft abdomen')); finish('The consultant agreed with you. The request is withdrawn.', 'win', () => onWin('consultant')); }
+      else if (Math.random() < 0.65) { G.stats.argumentsWon++; await reply('cons', 'Soft abdomen, normal obs? Yeah, fair enough. Review them in the morning.'.replace('Soft abdomen', c.modality === 'head' ? 'GCS 15' : c.modality === 'chest' ? 'Low risk' : c.modality === 'us' ? 'Walked in with a CRP of 12' : 'Soft abdomen')); finish('The consultant agreed with you. The request is withdrawn.', 'win', () => onWin('consultant')); }
       else { G.stats.argumentsLost++; await reply('cons', 'It\'s 3am. I don\'t care. Just do the scan, please.'); finish('The consultant just wants to go back to sleep. You\'re doing it.', 'lose', onLose); }
     } });
     choices.push({ id: 'fine', text: '"Fine. I\'ll do it."', ghost: true, fn: async () => {

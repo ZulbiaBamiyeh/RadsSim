@@ -150,6 +150,7 @@ function setupAbdo(S, rng) {
     fork: { x: 0.24, y: -0.12, r: 0.15, z0: 0.08, z1: 0.26 },
     pager: { x: 0.24, y: -0.12, r: 0.1, z0: 0.12, z1: 0.22 },
     sandwich: { x: 0.24, y: -0.12, r: 0.13, z0: 0.08, z1: 0.24 },
+    necfasc: { x: -0.62, y: -0.2, r: 0.25, z0: 0.62, z1: 0.98 },
   };
   S.lesionN = L[S.path] || null;
 }
@@ -296,6 +297,18 @@ function drawAbdo(S, z) {
     E(b, x, y, 0.11, 0.1, 0, (o, u, v) => (o < -60 ? o + 50 + (hash3(u * 80, v * 80, 9) - 0.5) * 70 : o), cav);
     E(b, x, y, 0.045, 0.045, 0, (o, u, v, lx, ly, d) => (d > 0.6 ? 125 : 22));
     if (inR(z, 0.69, 0.71)) E(b, x, y, 0.016, 0.016, 0, 950);
+  }
+  if (p === 'necfasc' && inR(z, 0.62, 0.98)) {
+    // Gas tracking through the subcutaneous fat and fascia of the right flank/groin, with fat stranding.
+    const k = prof(z, 0.62, 0.98);
+    E(b, -0.6, -0.18, 0.32 * k + 0.08, 0.36 * k + 0.08, 0.5, (o, u, v) => {
+      const q = ((u - cav.cx) / cav.rx) ** 2 + ((v - cav.cy) / cav.ry) ** 2;
+      if (q <= 1 || o < -500) return o;
+      const h = hash3(u * 110, v * 110, 31);
+      if (h < 0.09) return -950;
+      if (h < 0.13) return -600;
+      return o < -50 ? -35 + (hash3(u * 60, v * 60, 32) - 0.5) * 50 : o + 15;
+    });
   }
   if (p === 'fork' && inR(z, 0.08, 0.26)) {
     const k = (z - 0.08) / 0.18;
@@ -494,11 +507,45 @@ function drawChest(S, z) {
   return b;
 }
 
+// ---------- ULTRASOUND (hip, for the joint aspirate requests) ----------
+function setupUS(S, rng) {
+  S.lesionN = S.path === 'effusion' ? { x: 0, y: 0.02, r: 0.3, z0: 0.12, z1: 0.88 } : null;
+  S.tilt = (rng() - 0.5) * 0.2;
+}
+function drawUS(S, z) {
+  const b = new Float32Array(N * N).fill(0);
+  const eff = S.path === 'effusion' ? prof(z, 0.1, 0.9) : 0;
+  const shift = (z - 0.5) * 0.12;
+  for (let py = 0; py < N; py++) {
+    const v = (py + 0.5) / H2 - 1;
+    for (let px = 0; px < N; px++) {
+      const u = (px + 0.5) / H2 - 1;
+      const a = Math.atan2(u, v + 1.05), d = Math.hypot(u, v + 1.05);
+      if (Math.abs(a) > 0.62 || d < 0.1 || d > 1.95) continue;
+      const sp = 0.55 + hash3(px * 3, py * 2, 71 + Math.floor(z * 23)) * 0.9; // speckle
+      const x = u + S.tilt * v;
+      const bone = 0.12 + 0.2 * x * x + shift;
+      const cap = bone - 0.05 - 0.2 * eff * Math.exp(-x * x * 5);
+      let val;
+      if (v < -0.9) val = 150; // skin
+      else if (v < -0.8) val = 45; // subcutaneous
+      else if (v < cap) val = 62 + 12 * Math.sin(v * 95 + x * 9) + 8 * Math.sin(v * 31 - x * 4); // muscle striations
+      else if (v < cap + 0.025) val = 170; // capsule
+      else if (v < bone - 0.02) val = eff > 0.05 ? 6 + (hash3(px, py, 9) < 0.03 ? 40 : 0) : 70; // effusion (or thin synovium)
+      else if (v < bone + 0.03) val = 235; // cortex
+      else val = 8; // acoustic shadow
+      b[py * N + px] = val * sp * (1 - d * 0.18);
+    }
+  }
+  return b;
+}
+
 // ---------- study factory ----------
 const MODALITIES = {
   abdo: { n: 64, setup: setupAbdo, draw: drawAbdo, fov: 420, window: 'Soft tissue', noise: 22 },
   head: { n: 36, setup: setupHead, draw: drawHead, fov: 230, window: 'Brain', noise: 6 },
   chest: { n: 56, setup: setupChest, draw: drawChest, fov: 380, window: 'Soft tissue', noise: 18 },
+  us: { n: 24, setup: setupUS, draw: drawUS, fov: 60, window: 'US', noise: 6 },
 };
 
 export const WINDOWS = {
@@ -506,6 +553,7 @@ export const WINDOWS = {
   Lung: { ww: 1500, wl: -600 },
   Bone: { ww: 2000, wl: 500 },
   Brain: { ww: 80, wl: 40 },
+  US: { ww: 256, wl: 128 },
 };
 
 export function createStudy({ modality, path, seed }) {

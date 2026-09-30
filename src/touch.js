@@ -25,6 +25,7 @@ export function setupTouch(G) {
       <button id="t-item" class="t-btn" hidden>Item</button>
       <button id="t-jump" class="t-btn">Jump</button>
       <button id="t-drop" class="t-btn" hidden>Drop</button>
+      <button id="t-kick" class="t-btn">Kick</button>
     </div>
     <button id="t-help" class="t-btn small">?</button>`;
   document.body.appendChild(root);
@@ -89,12 +90,13 @@ export function setupTouch(G) {
   hold($('t-use'), () => key('KeyE', true), () => key('KeyE', false));
   hold($('t-item'), () => { P.mouse.right = true; }, () => { P.mouse.right = false; });
   hold($('t-jump'), () => P.keys.add('Space'), () => P.keys.delete('Space'));
+  hold($('t-kick'), () => G.kick?.());
   hold($('t-drop'), () => key('KeyQ', true), () => key('KeyQ', false));
   hold($('t-help'), () => { const h = document.getElementById('help'); h.hidden = !h.hidden; });
   document.getElementById('help').addEventListener('click', (e) => { e.currentTarget.hidden = true; });
 
   // Show only while walking around; relabel buttons for what you're holding.
-  const ITEM = { spray: 'Spray', ignite: 'Flick', eat: 'Eat', drink: 'Drink' };
+  const ITEM = { spray: 'Spray', ignite: 'Flick', eat: 'Eat', drink: 'Drink', zap: 'Clear!' };
   let last = '';
   setInterval(() => {
     root.hidden = G.mode !== 'play';

@@ -13,6 +13,7 @@ import { showForm, hideForm, minutesToClock } from './form.js';
 import { initAudio, sfx, setAlarm, crackle, rain } from './audio.js';
 import { isTouchDevice, setupTouch } from './touch.js';
 import { startArgument } from './argue.js';
+import { openRiskman, reportAboutYou, RISKMAN_OUTCOMES } from './riskman.js';
 
 const $ = (id) => document.getElementById(id);
 const pick = (a) => a[Math.floor(Math.random() * a.length)];
@@ -50,7 +51,8 @@ const G = {
   stats: {
     reported: 0, correct: 0, nailed: 0, wrong: [], speed: 0,
     fires: 0, alarms: 0, hits: 0, throws: 0, bedsLaunched: 0, bedCrashes: 0, npcsIgnited: 0, pages: 0, nags: 0,
-    argumentsWon: 0, argumentsLost: 0, wildWins: 0, wildUsed: null, consultantCalls: 0, rumors: 0,
+    argumentsWon: 0, clinicalCalls: 0, kicks: 0, tackles: 0, zaps: 0, slips: 0, bonks: 0,
+    riskmansFiled: 0, riskmansUpheld: 0, vexatious: 0, standDowns: 0, argumentsLost: 0, wildWins: 0, wildUsed: null, consultantCalls: 0, rumors: 0,
     hides: 0, timesFound: 0, searchesEvaded: 0, knocks: 0, liftRides: 0, roofFalls: 0, roofThrows: 0, boilers: 0, helis: 0, ghostChats: 0, ancient: 0, foundIn: null,
     caught: 0, sandwiches: 0, catPets: 0, quenches: 0, mriStuck: 0, rockets: 0, peakList: 0, formsBounced: 0, goodCatches: 0, naps: 0, selfIgnitions: 0, ctJokes: 0,
   },
@@ -128,13 +130,47 @@ G.caught = (sec) => {
     fade.hidden = true;
   }, 1800);
 };
-G.onAssault = () => {
+G.riskman = { filed: [], aboutYou: [] };
+G.spills = [];
+G.onAssault = (npc) => {
   G.complaints++;
+  if (npc && npc.role !== 'cat' && npc.anger >= 2 && !npc.filedOnYou && Math.random() < 0.6) {
+    npc.filedOnYou = true;
+    const cat = pick(['Assault by a radiologist', 'Physical intimidation', 'Unprofessional conduct', 'Being kicked (again)']);
+    reportAboutYou(G, npc.name, cat, pick(['"I was just asking about my scan."', '"They didn\'t even say sorry."', '"There were witnesses."', '"My scrubs are ruined."']));
+    toast(`${npc.name} has filed a RiskMann about you.`, 'bad');
+  }
   if (G.complaints >= 4 && G.wanted <= 0) {
     G.wanted = 40;
     G.complaints = 0;
     toast('Complaints are piling up. Security has been called.', 'bad');
   }
+};
+G.onVexatious = () => {
+  G.complaints += 2;
+  if (G.complaints >= 4 && G.wanted <= 0) { G.wanted = 40; G.complaints = 0; toast('Complaints are piling up. Security has been called.', 'bad'); }
+};
+// Upheld RiskMann: the person is pulled into a meeting; twice and they're stood down.
+G.riskmanUpheld = (n) => {
+  n.reportedCount = (n.reportedCount || 0) + 1;
+  if (n.role === 'cat') return RISKMAN_OUTCOMES.cat();
+  if (n.role === 'dms') { n.dismiss = true; return RISKMAN_OUTCOMES.dms(); }
+  if (n.role === 'patient') { n.detachBed(); n.goTo(10.5, 27.5); n.setState('leave'); return RISKMAN_OUTCOMES.patient(n); }
+  G.leaveQueue(n);
+  if (n.reportedCount >= 2) {
+    G.stats.standDowns++;
+    n.goTo(10.5, 27.5);
+    n.setState('leave');
+    n.say('This is so unfair.', 3);
+    const others = G.npcs.filter((x) => (x.role === 'registrar' || x.role === 'surgreg') && x !== n && x.state !== 'leave');
+    for (const c of G.cases) if (c.requester === n.name && others.length) c.requester = pick(others).name;
+    return RISKMAN_OUTCOMES.stoodDown(n);
+  }
+  n.meetingT = 90;
+  n.meetingSpot = null;
+  n.say('I\'ve been called into a meeting?!', 3);
+  n.setState('meeting');
+  return RISKMAN_OUTCOMES.meeting(n);
 };
 G.onStuck = (p) => {
   G.stats.mriStuck++;
@@ -260,7 +296,7 @@ function updateHud() {
   let hint = '';
   if (G.player.held) {
     const u = G.player.held.T.use;
-    hint = 'LMB throw · Q drop' + (u === 'spray' ? ' · RMB spray (look down to fly)' : u === 'ignite' ? ' · RMB flick lighter' : u === 'eat' ? ' · RMB eat' : u === 'drink' ? ' · RMB drink' : '');
+    hint = 'LMB throw · Q drop' + (u === 'spray' ? ' · RMB spray (look down to fly)' : u === 'ignite' ? ' · RMB flick lighter' : u === 'eat' ? ' · RMB eat' : u === 'drink' ? ' · RMB drink' : u === 'zap' ? ' · RMB "CLEAR!"' : '');
   } else if (G.player.pushing) hint = 'LMB launch bed · E let go';
   setText('held-hint', hint);
   $('alarm-vignette').hidden = !G.alarm;
@@ -335,6 +371,9 @@ function populate() {
     pt.attachBed(bed);
   }
   P.spawn('o2', 1.6, null, 20.2); P.spawn('o2', 19.6, null, 19.6);
+  P.spawn('defib', 1.5, 1.1, 17.9); P.spawn('defib', 12.5, 1.15, 15.9);
+  P.spawn('bedpan', 4.5, null, 20.5); P.spawn('bedpan', 16.3, null, 21); P.spawn('bedpan', 46.6, null, 5.5);
+  P.spawn('bucket', 49.2, null, 11.9); P.spawn('bucket', 47.6, null, 6.3); P.spawn('bucket', 20.5, null, 23.8);
   P.spawn('box', 9.5, 1.1, 15.9); P.spawn('paper', 10.6, 1.1, 15.8); P.spawn('paper', 12.1, 1.1, 16.1);
   P.spawn('bin', 14.2, null, 14.6);
   // Waiting
@@ -573,6 +612,15 @@ function openForm(c, reg) {
       startArgument(G, c, reg, {
         onWin: (kind) => {
           c.cancelled = kind;
+          if (kind === 'clinical') {
+            reg.say('Theatre it is. Thanks!', 3);
+            reg.cooldown = 40;
+            G.leaveQueue(reg);
+            reg.think();
+            toast(`${c.patient} goes straight to theatre. No scan needed. Good call.`, 'good');
+            resumePlay();
+            return;
+          }
           reg.say(kind === 'wild' ? 'I need to go tell everyone.' : pick(LINES.bounce), 3);
           reg.anger++;
           reg.cooldown = 40;
@@ -701,6 +749,11 @@ function useStation(id) {
     case 'lift':
       useLift();
       break;
+    case 'riskman':
+      G.mode = 'form';
+      P.unlock();
+      openRiskman(G, { onClose: () => resumePlay() });
+      break;
     case 'mirror':
       toast(G.sootT > 0 ? 'You are covered in soot. Your eyebrows are gone.' : G.list() > 20 ? 'You look like someone with ' + G.list() + ' unreported scans.' : pick(['You look like you\'ve been awake for 19 hours. Because you have.', 'Lanyard: crooked. Soul: tired.', 'You practise saying "no acute abnormality" in the mirror.']));
       break;
@@ -787,10 +840,45 @@ window.addEventListener('keydown', (e) => {
   if (e.code === 'KeyH' && (G.mode === 'play' || G.mode === 'paused')) $('help').hidden = !$('help').hidden;
   if (G.mode !== 'play') return;
   if (e.code === 'KeyE') interact();
+  if (e.code === 'KeyF') kick();
   if (e.code === 'KeyQ') { if (G.player.held) dropHeld(); else if (G.player.pushing) releaseBed(false); }
   if (e.code === 'KeyL') { for (let i = 0; i < 5; i++) addCase({ silent: true }); toast('Cheat: +5 requests dumped on the list.'); }
   if (e.code === 'KeyT') { G.time = Math.min(SHIFT_MINUTES - 1, G.time + 60); toast('Cheat: skipped an hour.'); }
 });
+
+function kick() {
+  const P = G.player;
+  if (P.hidden || G.kickT > 0) return;
+  G.kickT = 0.5;
+  G.kickAnim = 0.25;
+  const f = P.forward();
+  const t = lookTarget(2.2);
+  sfx.whoosh();
+  if (t?.npc && t.npc.state !== 'lie') {
+    G.stats.kicks++;
+    sfx.thud(1);
+    t.npc.knock(f.x * 9, f.z * 9, true, 4.5, pick(['OOF!', 'MY SPLEEN!', 'WHAT WAS THAT FOR?!', 'OW OW OW']));
+  } else if (t?.prop && !t.prop.stuck && !t.prop.T.bed) {
+    const p = t.prop;
+    const k = 12 / Math.sqrt(Math.max(1, p.T.mass / 2));
+    p.vel.set(f.x * k, 4, f.z * k);
+    p.spin = rand(-15, 15);
+    sfx.thud(0.7);
+  } else if (t?.prop?.T.bed) {
+    t.prop.vel.set(f.x * 6, 0, f.z * 6);
+    sfx.thud(0.8);
+    if (t.prop.rider) t.prop.rider.say('HEY! I\'m a patient!', 2, true);
+  }
+}
+G.kick = kick;
+
+function spill(p) {
+  p.spilled = true;
+  G.spills.push({ x: p.pos.x, z: p.pos.z, r: 1.7, t: 120 });
+  for (let dx = -1; dx <= 1; dx++) for (let dz = -1; dz <= 1; dz++) G.world.puddle(Math.floor(p.pos.x) + dx, Math.floor(p.pos.z) + dz);
+  for (let i = 0; i < 60; i++) G.sprayFx.emit(p.pos.x, 0.4, p.pos.z, rand(-3, 3), rand(1, 3), rand(-3, 3), 0.6, 0.12, 0.05, 0.55, 0.6, 0.55, 0.8, 9);
+  toast('The mop bucket goes over. Grey water everywhere. Wet floor, no sign.');
+}
 
 function handleMouse(dt) {
   const P = G.player;
@@ -847,7 +935,21 @@ function handleMouse(dt) {
         }
       }
     } else if (!G.rightWas) {
-      if (h.T.use === 'ignite') {
+      if (h.T.use === 'zap') {
+        if (G.defibT > 0) { toast('Charging… (the paddles whine ominously)'); }
+        else {
+          G.defibT = 2.5;
+          const t = lookTarget(2.4);
+          const e = P.eye();
+          sfx.sparks(); sfx.clang();
+          for (let i = 0; i < 25; i++) G.flameFx.emit(e.x + d.x * 0.9, e.y - 0.2 + d.y, e.z + d.z * 0.9, rand(-2, 2), rand(-1, 2), rand(-2, 2), 0.3, 0.1, 0.02, 0.5, 0.8, 1, 1);
+          if (t?.npc) {
+            G.stats.zaps++;
+            toast(t.npc.state === 'lie' ? '"CLEAR!" The patient was not in cardiac arrest. They are now very awake.' : '"CLEAR!"');
+            t.npc.zap(f.x, f.z);
+          } else toast('"CLEAR!" You shock the air. Everybody looks at you.');
+        }
+      } else if (h.T.use === 'ignite') {
         sfx.flick();
         const e = P.eye();
         let done = false;
@@ -1190,6 +1292,7 @@ function updateSystems(dt) {
         toast('An oxygen cylinder has become a rocket.', 'bad');
       }
     }
+    if (p.T.spill && !p.spilled && !p.held && Math.hypot(p.vel.x, p.vel.z) > 3.5) spill(p);
     if (p.rocket > 0) { p.rocket -= dt; for (let k = 0; k < 3; k++) G.flames(p.pos.x, p.pos.y, p.pos.z, 1.2); if (Math.random() < 0.2) G.fire.ignite(p.pos.x, p.pos.z, 0.3); }
     const sp = p.pushed ? Math.hypot(G.player.vel.x, G.player.vel.z) : Math.hypot(p.vel.x, p.vel.z, p.vel.y * 0.5);
     if (sp > 3.2 && !p.held) {
@@ -1198,7 +1301,8 @@ function updateSystems(dt) {
         const dx = n.pos.x - p.pos.x, dz = n.pos.y - p.pos.z;
         if (dx * dx + dz * dz < (p.T.r + 0.3) ** 2 && p.pos.y < n.hitH) {
           const vx = p.pushed ? G.player.vel.x : p.vel.x, vz = p.pushed ? G.player.vel.z : p.vel.z;
-          n.knock(vx * 0.7, vz * 0.7, true);
+          if (p.T.bonk) { sfx.clang(); G.stats.bonks++; n.knock(vx * 0.7, vz * 0.7, true, 2, pick(['BONK', '*CLANG*', 'IS THAT A BEDPAN?!'])); }
+          else n.knock(vx * 0.7, vz * 0.7, true);
           if (!p.pushed && !p.T.bed) p.vel.multiplyScalar(0.3);
         }
       }
@@ -1250,7 +1354,24 @@ function updateSystems(dt) {
     const a = N[i];
     if (a.state === 'lie' || a.state === 'sit') continue;
     const dxp = a.pos.x - P.pos.x, dzp = a.pos.y - P.pos.z, dp = Math.hypot(dxp, dzp);
+    const pSpeed = Math.hypot(P.vel.x, P.vel.z);
+    if (dp < 0.75 && pSpeed > 5 && !P.hidden && a.state !== 'knocked' && a.role !== 'ghost') {
+      G.stats.tackles++;
+      if (G.stats.tackles === 1) toast('TACKLE. That is not in your job description.');
+      sfx.thud(1);
+      a.knock(P.vel.x * 1.2, P.vel.z * 1.2, true, 2, pick(['TACKLED!', 'OOOF', 'WHAT THE—']));
+      P.vel.x *= 0.4; P.vel.z *= 0.4;
+    }
     if (dp < 0.6 && dp > 1e-4) { a.pos.x += (dxp / dp) * (0.6 - dp); a.pos.y += (dzp / dp) * (0.6 - dp); }
+    if (G.spills.length && a.state !== 'knocked' && a.role !== 'ghost' && a.vel.lengthSq() > 0.5) {
+      for (const sp of G.spills) {
+        if (Math.hypot(a.pos.x - sp.x, a.pos.y - sp.z) < sp.r) {
+          G.stats.slips++;
+          a.knock(a.vel.x * 2.5, a.vel.y * 2.5, false, 2.5, pick(['WHOA—', 'WET FLOOR!!', 'NO SIGN?!', 'AAAH—']));
+          break;
+        }
+      }
+    }
     for (let j = i + 1; j < N.length; j++) {
       const b = N[j];
       if (b.state === 'lie' || b.state === 'sit') continue;
@@ -1263,6 +1384,9 @@ function updateSystems(dt) {
     }
   }
   if (G.wanted > 0) G.wanted -= dt;
+  if (G.kickT > 0) G.kickT -= dt;
+  if (G.defibT > 0) G.defibT -= dt;
+  for (const sp of G.spills.slice()) { sp.t -= dt; if (sp.t <= 0) G.spills.splice(G.spills.indexOf(sp), 1); }
 
   // Smoke haze
   smoke += (Math.min(1, G.fire.total / 30) - smoke) * Math.min(1, dt * 0.5);
@@ -1325,13 +1449,17 @@ function endShift() {
   G.player.unlock();
   setAlarm(false);
   G.world.alarmLight.intensity = 0;
-  for (const id of ['alarm-vignette', 'fire-overlay', 'soot', 'help', 'paused', 'hide-overlay', 'lift-modal', 'argue-modal']) $(id).hidden = true;
+  for (const id of ['alarm-vignette', 'fire-overlay', 'soot', 'help', 'paused', 'hide-overlay', 'lift-modal', 'argue-modal', 'riskman']) $(id).hidden = true;
   const s = G.stats;
   const unrep = G.list();
-  const argued = G.cases.filter((c) => c.cancelled && c.path !== 'normal');
-  const chaos = s.wildWins * 4 + s.roofFalls * 5 + s.boilers * 6 + s.helis * 3 + s.roofThrows + s.fires * 3 + s.hits + s.bedsLaunched * 2 + s.npcsIgnited * 4 + s.mriStuck * 2 + s.quenches * 10 + s.rockets * 5 + s.caught * 3 + s.ctJokes * 2 + s.sandwiches;
-  const clinical = s.correct * 10 + s.nailed * 5 - s.wrong.length * 8 - unrep * 5 + s.goodCatches * 4 - argued.length * 6;
+  const argued = G.cases.filter((c) => c.cancelled && c.cancelled !== 'clinical' && c.path !== 'normal');
+  const chaos = s.kicks * 2 + s.tackles * 2 + s.zaps * 4 + s.slips + s.bonks + s.standDowns * 5 + s.wildWins * 4 + s.roofFalls * 5 + s.boilers * 6 + s.helis * 3 + s.roofThrows + s.fires * 3 + s.hits + s.bedsLaunched * 2 + s.npcsIgnited * 4 + s.mriStuck * 2 + s.quenches * 10 + s.rockets * 5 + s.caught * 3 + s.ctJokes * 2 + s.sandwiches;
+  const clinical = s.correct * 10 + s.nailed * 5 - s.wrong.length * 8 - unrep * 5 + s.goodCatches * 4 - argued.length * 6 + s.clinicalCalls * 8;
   const headlines = [];
+  if (s.standDowns) headlines.push(`${s.standDowns} DOCTOR${s.standDowns > 1 ? 'S' : ''} STOOD DOWN AFTER NIGHT-LONG RISKMANN BLITZ BY RADIOLOGIST`);
+  else if (s.riskmansFiled >= 5) headlines.push(`RADIOLOGIST FILES ${s.riskmansFiled} INCIDENT REPORTS IN ONE NIGHT`);
+  if (s.zaps) headlines.push(`${s.zaps} PEOPLE DEFIBRILLATED "FOR NO CLINICAL REASON"`);
+  if (s.kicks + s.tackles >= 5) headlines.push('ED STAFF REQUEST SHIN GUARDS FOR NIGHT SHIFT');
   if (s.wildWins) headlines.push(`RADIOLOGIST TELLS ED: ${(s.wildUsed || '').replace(/\(.*?\)/g, '').replace(/"/g, '').trim().replace(/\.$/, '').toUpperCase()}`);
   if (s.roofFalls) headlines.push('RADIOLOGIST FLIES OFF ROOF ON FIRE EXTINGUISHER, REPORTS OWN CT');
   if (s.timesFound) headlines.push(`RADIOLOGIST FOUND HIDING ${String(s.foundIn).toUpperCase()}`);
@@ -1359,7 +1487,9 @@ function endShift() {
     ['Beds launched', s.bedsLaunched], ['People set on fire', s.npcsIgnited], ['Items lost to the MRI', s.mriStuck], ['O2 rockets', s.rockets],
     ['Caught by security', s.caught], ['Sandwiches stolen', s.sandwiches], ['Cat pets', s.catPets], ['Naps', s.naps],
     ['Arguments won / lost', `${s.argumentsWon} / ${s.argumentsLost}`], ['Wild arguments that worked', s.wildWins], ['Times hidden', s.hides], ['Times found hiding', s.timesFound],
-    ['Searches evaded', s.searchesEvaded], ['Knocks on your door', s.knocks], ['Lift rides', s.liftRides], ['Things thrown off the roof', s.roofThrows],
+    ['Kicks / tackles', `${s.kicks} / ${s.tackles}`], ['Defibrillated (not in arrest)', s.zaps], ['Slipped on your spill', s.slips], ['Bedpan bonks', s.bonks],
+    ['RiskManns filed / upheld', `${s.riskmansFiled} / ${s.riskmansUpheld}`], ['Vexatious reports', s.vexatious], ['Colleagues stood down', s.standDowns], ['RiskManns about you', G.riskman.aboutYou.length],
+    ['Straight-to-theatre calls', s.clinicalCalls], ['Searches evaded', s.searchesEvaded], ['Knocks on your door', s.knocks], ['Lift rides', s.liftRides], ['Things thrown off the roof', s.roofThrows],
   ];
   $('m-stats').innerHTML = rows.map(([k, v]) => `<div><span>${k}</span><b>${v}</b></div>`).join('');
   const mm = s.wrong.slice(0, 8).map((c) => `<li><b>${c.patient}</b>, ${c.study}: you said "${FINDINGS[c.modality][c.finding]}". It was <b>${FINDINGS[c.modality][c.path]}</b>.</li>`);

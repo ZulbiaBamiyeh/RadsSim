@@ -1,7 +1,7 @@
 // Case / request-form generator. All patients and staff are fictional.
 import { createStudy } from './ctgen.js';
 
-export const STUDY_NAMES = { abdo: 'CT Abdomen/Pelvis', head: 'CT Brain (non-con)', chest: 'CT Pulmonary Angiogram' };
+export const STUDY_NAMES = { abdo: 'CT Abdomen/Pelvis', head: 'CT Brain (non-con)', chest: 'CT Pulmonary Angiogram', us: 'US-guided hip aspirate' };
 
 export const FINDINGS = {
   abdo: {
@@ -12,6 +12,7 @@ export const FINDINGS = {
     aaa: 'Abdominal aortic aneurysm',
     appendicitis: 'Acute appendicitis',
     renal_stone: 'Obstructing ureteric calculus',
+    necfasc: 'Soft-tissue gas (necrotising fasciitis)',
     fork: 'Ingested foreign body: fork',
     pager: 'Ingested foreign body: pager',
     sandwich: 'Intragastric sandwich',
@@ -30,6 +31,10 @@ export const FINDINGS = {
     mass: 'Spiculated lung mass',
     consolidation: 'Consolidation / pneumonia',
   },
+  us: {
+    normal: 'No effusion: aspirate not indicated',
+    effusion: 'Hip effusion: aspirated (it\'s pus)',
+  },
 };
 const JOKE = new Set(['fork', 'pager', 'sandwich']);
 
@@ -41,6 +46,7 @@ const CLINICAL = {
     aaa: ['sudden back pain radiating to groin, BP 95/60, ?pulsatile mass', 'known 4.8cm AAA, now tearing back pain'],
     appendicitis: ['periumbilical pain migrating to RIF, anorexic, WCC 15', 'RIF pain, rebound, Rovsing +ve'],
     renal_stone: ['loin to groin pain, writhing, haematuria', 'colicky flank pain, can\'t sit still, microscopic haematuria'],
+    necfasc: ['diabetic, R groin/flank pain out of proportion, crepitus?, HR 125', 'rapidly spreading erythema R flank, dusky skin, septic, pain >> signs'],
     normal: ['vague abdo pain x3 weeks, "just want a scan"', 'abdo pain, LFTs mildly deranged, ?anything'],
   },
   head: {
@@ -57,9 +63,14 @@ const CLINICAL = {
     consolidation: ['fever, productive cough, crackles R base', 'SOB + febrile, ?PE ?pneumonia ?both'],
     normal: ['chest pain, trop neg x2, "just rule it out"', 'pleuritic pain, Wells low, D-dimer 0.6 (age-adjusted fine?)'],
   },
+  us: {
+    effusion: ['hot swollen R hip, febrile 39.2, can\'t weight bear, CRP 180', 'R hip held flexed + ext rotated, rigors, CRP 220'],
+    normal: ['R hip pain after gardening, afebrile, walked in, CRP 12', '"hip feels funny", mobilising, bloods normal'],
+  },
 };
 const QUESTIONS = {
-  abdo: ['Exclude perforation', 'Exclude collection', '?SBO', 'Exclude AAA / rupture', '?Appendicitis', '?Renal colic', '?Cause'],
+  abdo: ['Exclude perforation', 'Exclude collection', '?SBO', 'Exclude AAA / rupture', '?Appendicitis', '?Renal colic', '?Nec fasc', '?Cause'],
+  us: ['?Septic arthritis: aspirate please', 'US hip + aspirate ?effusion'],
   head: ['Exclude bleed', 'Exclude haemorrhage', 'Code stroke: ?infarct ?bleed', '?SAH', 'Exclude intracranial pathology'],
   chest: ['Exclude PE', '?PE', 'Exclude PE ?other cause', 'CTPA please'],
 };
@@ -91,7 +102,7 @@ export function makeCase({ requester, gameMinutes, forced } = {}) {
   let modality, path;
   if (forced) ({ modality, path } = forced);
   else {
-    modality = weighted([['abdo', 45], ['head', 30], ['chest', 25]]);
+    modality = weighted([['abdo', 45], ['head', 28], ['chest', 23], ['us', 9]]);
     const paths = Object.keys(FINDINGS[modality]).filter((p) => !JOKE.has(p));
     path = Math.random() < 0.28 ? 'normal' : pick(paths.filter((p) => p !== 'normal'));
     if (modality === 'abdo' && Math.random() < 0.06) path = pick(['fork', 'pager', 'sandwich']);
@@ -107,10 +118,13 @@ export function makeCase({ requester, gameMinutes, forced } = {}) {
     const key = Math.random() < 0.65 ? path : pick(Object.keys(CLINICAL[modality]));
     clinical = pick(CLINICAL[modality][key]);
     question = pick(QUESTIONS[modality]);
+    // Some questions only make sense with the matching history.
+    if (key === 'necfasc') question = '?Nec fasc (urgent)';
+    else if (key === 'appendicitis' && Math.random() < 0.7) question = '?Appendicitis';
   }
   const redFlags = [];
   if (sex === 'F' && age < 50 && Math.random() < 0.35) redFlags.push('Pregnancy status not documented');
-  if (modality !== 'head' && Math.random() < 0.12) redFlags.push('eGFR 24, contrast not approved');
+  if ((modality === 'abdo' || modality === 'chest') && Math.random() < 0.12) redFlags.push('eGFR 24, contrast not approved');
   if (Math.random() < 0.12) redFlags.push('Pager field blank (mandatory)');
   const c = {
     id: nextId++,

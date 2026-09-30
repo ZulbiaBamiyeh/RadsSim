@@ -225,13 +225,15 @@ export class NPC {
 
   setState(s, t = 0) { this.state = s; this.stateT = t; }
 
-  knock(vx, vz, fromPlayer = true) {
-    if (this.state === 'knocked') { this.vel.x += vx * 0.5; this.vel.y += vz * 0.5; return; }
+  knock(vx, vz, fromPlayer = true, up = 0, shout) {
+    if (!this.kv) { this.kv = new THREE.Vector2(); this.air = 0; this.vy = 0; }
+    if (this.state === 'knocked') { this.kv.x += vx * 0.5; this.kv.y += vz * 0.5; this.vy = Math.max(this.vy, up); return; }
     this.detachBed();
     this.prevState = this.state === 'lie' ? 'return' : this.state;
-    this.setState('knocked', 2.6);
-    this.vel.set(vx, vz);
-    this.say(this.role === 'cat' ? 'MRRROW!' : pick(LINES.ow), 2, true);
+    this.setState('knocked', 2.6 + up * 0.15);
+    this.kv.set(vx, vz);
+    this.vy = up;
+    this.say(shout || (this.role === 'cat' ? 'MRRROW!' : pick(LINES.ow)), 2, true);
     this.role === 'cat' ? sfx.meow() : sfx.ow();
     if (fromPlayer) { this.anger++; this.G.stats.hits++; this.G.onAssault?.(this); }
   }
@@ -244,6 +246,12 @@ export class NPC {
     this.say(this.role === 'cat' ? 'MREEEOW' : 'AAAAH I\'M ON FIRE', 2.5, true);
     sfx.scream();
     this.G.stats.npcsIgnited++;
+  }
+
+  // Defibrillated: hair stands on end, they fly backwards.
+  zap(dx, dz) {
+    if (this.afro) { this.afro.visible = true; this.afro.scale.set(1.3, 1.5, 1.3); }
+    this.knock(dx * 7, dz * 7, true, 5, this.role === 'cat' ? 'MRRRZZZT' : pick(['BZZZZT', 'AAAARGH', 'I DON\'T HAVE A PULSE PROBLEM!', 'My fillings!']));
   }
 
   soot() {
@@ -426,7 +434,7 @@ export class NPC {
         } else {
           this.face = Math.atan2(P.x - this.pos.x, P.z - this.pos.y);
           this.nagT -= dt;
-          if (this.nagT <= 0) { this.say(pick(LINES.nag), 3); this.nagT = 4 + Math.random() * 3; G.stats.nags++; }
+          if (this.nagT <= 0) { this.say(pick(LINES.nag), 3); this.nagT = 4 + Math.random() * 3; G.stats.nags++; this.nagCount = (this.nagCount || 0) + 1; }
         }
         break;
       }
@@ -468,6 +476,15 @@ export class NPC {
           G.spray(this.pos.x + Math.sin(this.face) * 0.5, 1.2, this.pos.y + Math.cos(this.face) * 0.5, dx / d, -0.1, dz / d, true);
           if (Math.random() < 0.004) this.say(pick(LINES.firefighter), 2, true);
         }
+        break;
+      }
+      case 'meeting': {
+        // Pulled into a meeting after a RiskMann report: sits in the cafe looking chastened.
+        this.meetingT -= dt;
+        if (!this.meetingSpot) { this.meetingSpot = randomCellIn('cafe'); this.goTo(this.meetingSpot.x, this.meetingSpot.z); }
+        this.follow(dt, this.R.speed);
+        if (Math.random() < 0.003 && dP < 6) this.say(pick(['I\'m in a meeting.', 'Apparently I "page too much".', 'I\'m reflecting. On my practice.']), 3);
+        if (this.meetingT <= 0) { this.meetingSpot = null; this.cooldown = 30; this.setState('idle', 1); }
         break;
       }
       case 'search': {
@@ -531,7 +548,9 @@ export class NPC {
         } else this.returnDelay = 3 + Math.random() * 8;
         break;
       case 'knocked':
-        this.vel.x *= 0.9; this.vel.y *= 0.9;
+        this.air += this.vy * dt;
+        this.vy -= 18 * dt;
+        if (this.air <= 0) { this.air = 0; this.vy = 0; this.kv.multiplyScalar(Math.pow(0.08, dt)); }
         if (this.stateT <= 0) {
           if (this.anger > 2 && this.role !== 'cat' && Math.random() < 0.6) this.say('That\'s it. I\'m calling security.', 3);
           this.setState('idle', 0.5);
@@ -553,7 +572,7 @@ export class NPC {
 
     // Integrate + collide
     if (this.state === 'knocked') {
-      this.pos.x += this.vel.x * dt; this.pos.y += this.vel.y * dt;
+      this.pos.x += this.kv.x * dt; this.pos.y += this.kv.y * dt;
     } else if (this.state !== 'lie' && this.state !== 'sit') {
       this.pos.x += this.vel.x * dt; this.pos.y += this.vel.y * dt;
     }
@@ -592,7 +611,8 @@ export class NPC {
       b.position.set(0, 0.9, 0.85);
     } else if (this.state === 'knocked') {
       b.rotation.x = -Math.PI / 2;
-      b.position.set(0, 0.25, 0.3);
+      b.position.set(0, 0.25 + (this.air || 0), 0.3);
+      if (this.air > 0.05) b.rotation.z = this.walkT * 14;
     } else if (this.state === 'sit') {
       b.position.y = -0.25;
     } else if (this.role === 'ghost') {

@@ -93,6 +93,24 @@ At the PACS workstation:
   - **"Call your consultant":** this goes badly if the scan was actually needed.
   - **Consequences:** winning withdraws the request, though it may come back later "much worse". Arguing away a scan that had real pathology shows up at the morning M&M.
 
+## Violence, RiskMann, and case-specific arguments
+
+- **Violence:**
+  - **Kick:** press F, or the Kick button on phones. It launches people, props and beds.
+  - **Tackle:** sprint into someone.
+  - **Defibrillator paddles:** they're on the resus crash cart and nurses' station. Right-click shouts "CLEAR!" and people fly backwards with their hair on end.
+  - **Bedpans:** throw them for a *BONK*.
+  - **Mop buckets:** kick or throw one over and the grey water spill makes passers-by slip.
+  - **Consequences:** people you've hurt may file RiskMann reports about you.
+- **RiskMann** is on the side computer in the reading room (a parody incident-reporting system). Pick a person, an incident category and a severity, then submit.
+  - **Accurate reports get upheld.** A category is accurate when it fits what actually happened: they paged you repeatedly, their form has problems, their request was low-yield, they were rude, and so on. The person is pulled into a meeting in the cafe, and a second upheld report gets them stood down with their requests reassigned.
+  - **Frivolous or exaggerated reports** ("Breathing too loudly", Catastrophic) are found vexatious and filed about you instead.
+- **Case-specific arguments:**
+  - **Appendicitis:** "What's the Alvarado?" and "So you've got clinically diagnosed appendicitis, do they need a scan?"
+  - **US-guided hip aspirate requests:** "How do you know there's an effusion?" and "Why aren't ortho taking them to theatre?"
+  - **Nec fasc CTs:** "Nec fasc is a clinical diagnosis."
+  - **How they play out:** when the patient really is sick, the clinical arguments send them straight to theatre. That counts as a good call, with no M&M. When the request is weak, the registrar folds.
+
 ## Code map
 
 | File | What it does |
@@ -109,6 +127,7 @@ At the PACS workstation:
 | `src/player.js` | First-person controller, carrying, bed pushing |
 | `src/particles.js` | GPU point particles for flames, smoke, spray and sprinklers |
 | `src/audio.js` | Synthesised sound effects (no audio files) |
+| `src/riskman.js` | RiskMann incident-reporting app |
 | `src/argue.js` | The registrar argument when you bounce a request |
 | `src/touch.js` | Phone/tablet controls: move stick, drag-to-look, action buttons |
 

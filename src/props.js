@@ -66,6 +66,23 @@ export const PROP_TYPES = {
     add(g, C(0.02, 0.05), '#2a6fdb', 0, 0.09);
     add(g, B(0.06, 0.015, 0.015), '#2a6fdb', 0.03, 0.11);
   } },
+  defib: { name: 'Defibrillator paddles', r: 0.16, h: 0.14, mass: 2, metal: 0.6, use: 'zap', build(g) {
+    for (const sx of [-0.09, 0.09]) {
+      add(g, B(0.12, 0.04, 0.16), '#dfe3e8', sx, -0.03);
+      add(g, C(0.025, 0.1), '#f28c28', sx, 0.04);
+    }
+    add(g, B(0.05, 0.02, 0.02), '#ffd400', 0, 0.06);
+  } },
+  bedpan: { name: 'Bedpan (clean, probably)', r: 0.18, h: 0.08, mass: 0.8, metal: 1, bonk: true, build(g) {
+    add(g, C(0.16, 0.07, 16), '#c9ced4');
+    add(g, B(0.08, 0.05, 0.14), '#c9ced4', 0, 0, 0.2);
+  } },
+  bucket: { name: 'Mop bucket (full, grey water)', r: 0.26, h: 0.5, mass: 6, spill: true, build(g) {
+    add(g, C(0.24, 0.4, 14), '#f2c21b', 0, -0.05);
+    add(g, C(0.21, 0.02, 14), '#6b7a7a', 0, 0.14);
+    add(g, B(0.3, 0.12, 0.2), '#555', 0.05, 0.2);
+    add(g, C(0.015, 1.1), '#ccc', -0.1, 0.55, 0, 0.25, 0, 0);
+  } },
   coffee: { name: 'Cold coffee', r: 0.06, h: 0.13, mass: 0.3, use: 'drink', build(g) {
     add(g, C(0.045, 0.12), '#f4efe6');
     add(g, C(0.047, 0.03), '#6b4a2e', 0, 0.045);

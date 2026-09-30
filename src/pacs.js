@@ -237,17 +237,19 @@ export class Pacs {
       g.fillText(c.study, W - 10, 28);
       g.fillText(`Acq ${minutesToClock(c.arrived)}`, W - 10, 46);
       g.textBaseline = 'bottom';
-      g.fillText(`${S.fov} mm FOV`, W - 10, W - 10);
+      g.fillText(c.modality === 'us' ? `Depth ${S.fov} mm` : `${S.fov} mm FOV`, W - 10, W - 10);
       g.textAlign = 'left';
       g.fillStyle = '#f5b041';
-      g.fillText(`Im: ${this.slice + 1}/${S.n}   Ax 2.0mm`, 10, W - 28);
+      g.fillText(c.modality === 'us' ? `Frame ${this.slice + 1}/${S.n}   R hip, long.   5 MHz` : `Im: ${this.slice + 1}/${S.n}   Ax 2.0mm`, 10, W - 28);
       g.fillText(`W: ${Math.round(this.ww)}  L: ${Math.round(this.wl)}`, 10, W - 10);
       g.fillStyle = '#ccc';
       g.textAlign = 'center';
       g.textBaseline = 'middle';
-      g.fillText('A', W / 2, 60);
-      g.fillText('R', 16, W / 2);
-      g.fillText('L', W - 16, W / 2);
+      if (c.modality !== 'us') {
+        g.fillText('A', W / 2, 60);
+        g.fillText('R', 16, W / 2);
+        g.fillText('L', W - 16, W / 2);
+      }
       g.textAlign = 'left';
       if (this.mark && Math.abs(this.mark.slice - this.slice) <= 2) {
         const mx = ((this.mark.x + 1) / 2) * W, my = ((this.mark.y + 1) / 2) * W;
