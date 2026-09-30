@@ -83,6 +83,10 @@ export const PROP_TYPES = {
     add(g, B(0.3, 0.12, 0.2), '#555', 0.05, 0.2);
     add(g, C(0.015, 1.1), '#ccc', -0.1, 0.55, 0, 0.25, 0, 0);
   } },
+  pager: { name: 'Your pager', r: 0.06, h: 0.05, mass: 0.15, metal: 1, build(g) {
+    add(g, B(0.09, 0.05, 0.04), '#1b1d20');
+    add(g, B(0.06, 0.02, 0.005), '#9fb58a', 0, 0.005, 0.021);
+  } },
   coffee: { name: 'Cold coffee', r: 0.06, h: 0.13, mass: 0.3, use: 'drink', build(g) {
     add(g, C(0.045, 0.12), '#f4efe6');
     add(g, C(0.047, 0.03), '#6b4a2e', 0, 0.045);

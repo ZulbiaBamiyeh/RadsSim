@@ -50,6 +50,16 @@ export class Scanning {
     return true;
   }
 
+  // A metal object reached the bore mid-scan: the scan is ruined (and the patient is not happy).
+  onMetalInBore(p) {
+    const job = this.busy.mri;
+    if (!job || job.t < job.dur * 0.2) return;
+    job.t = 0;
+    this.G.stats.scansRuined = (this.G.stats.scansRuined || 0) + 1;
+    this.radiographer('mri')?.say(`A ${p.T.name.toLowerCase()} just flew into the bore! Starting again!`, 3, true);
+    this.G.toast(`A ${p.T.name.toLowerCase()} flew into the MRI mid-scan. The patient screamed. The scan restarts.`, 'bad');
+  }
+
   queued(id) { return this.q[id].length + (this.busy[id] ? 1 : 0); }
 
   radiographer(id) {

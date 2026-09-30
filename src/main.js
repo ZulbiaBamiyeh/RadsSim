@@ -53,7 +53,7 @@ const G = {
     reported: 0, correct: 0, nailed: 0, wrong: [], speed: 0,
     fires: 0, alarms: 0, hits: 0, throws: 0, bedsLaunched: 0, bedCrashes: 0, npcsIgnited: 0, pages: 0, nags: 0,
     argumentsWon: 0, clinicalCalls: 0, kicks: 0, tackles: 0, zaps: 0, slips: 0, bonks: 0,
-    radiationDoses: 0, scanned: 0,
+    radiationDoses: 0, scanned: 0, pinned: 0, pagesMissed: 0,
     riskmansFiled: 0, riskmansUpheld: 0, vexatious: 0, standDowns: 0, argumentsLost: 0, wildWins: 0, wildUsed: null, consultantCalls: 0, rumors: 0,
     hides: 0, timesFound: 0, searchesEvaded: 0, knocks: 0, liftRides: 0, roofFalls: 0, roofThrows: 0, boilers: 0, helis: 0, ghostChats: 0, ancient: 0, foundIn: null,
     caught: 0, sandwiches: 0, catPets: 0, quenches: 0, mriStuck: 0, rockets: 0, peakList: 0, formsBounced: 0, goodCatches: 0, naps: 0, selfIgnitions: 0, ctJokes: 0,
@@ -177,6 +177,8 @@ G.riskmanUpheld = (n) => {
 };
 G.onStuck = (p) => {
   G.stats.mriStuck++;
+  G.scan.onMetalInBore?.(p);
+  if (p.type === 'pager') return;
   if (p.rider) { const r = p.rider; r.detachBed(); r.knock(-3, 0, true); }
   toast(pick([`The ${p.T.name.toLowerCase()} is now part of the MRI.`, 'CLANG. The magnet claims another.', `A ${p.T.name.toLowerCase()} achieved escape velocity.`]));
 };
@@ -279,6 +281,7 @@ G.toast = toast;
 G.page = (t) => page(t);
 G.reportAboutYou = (from, cat, note) => { reportAboutYou(G, from, cat, note); toast(`${from} has filed a RiskMann about you.`, 'bad'); };
 function page(text) {
+  if (G.pagerStuck) { G.stats.pagesMissed++; return; } // it's stuck to the MRI. Bliss.
   G.stats.pages++;
   sfx.pager();
   toast(`PAGER · ${text}`, 'pager');
@@ -844,6 +847,7 @@ function useStation(id) {
       G.stats.quenches++;
       sfx.hiss();
       for (const p of G.props.list) if (p.stuck) { p.stuck = false; p.vel.set(rand(-2, 2), 1, rand(-2, 2)); }
+      for (const n of G.npcs) if (n.state === 'pinned') n.release();
       for (let i = 0; i < 400; i++) G.smokeFx.emit(rand(31, 42), rand(0.5, 2.8), rand(1.5, 7.5), rand(-1, 1), rand(-0.2, 0.5), rand(-1, 1), rand(3, 6), 1, 3, 0.95, 0.97, 1, 0.5);
       toast('You quenched the MRI. That was about $1.2 million of helium. Somewhere, a physicist wakes up screaming.', 'bad');
       break;
@@ -925,7 +929,12 @@ function handleMouse(dt) {
       releaseBed(true);
     } else {
       const t = lookTarget();
-      if (t?.prop && !t.prop.T.bed && t.prop.T.mass <= 20 && !t.prop.stuck) {
+      if (t?.prop?.type === 'pager' && !t.prop.stuck) {
+        G.props.remove(t.prop);
+        G.pagerStuck = false;
+        sfx.pager();
+        toast('You clip your pager back on. It immediately goes off.', 'bad');
+      } else if (t?.prop && !t.prop.T.bed && t.prop.T.mass <= 20 && !t.prop.stuck) {
         t.prop.held = true;
         t.prop.vel.set(0, 0, 0);
         P.held = t.prop;
@@ -1365,6 +1374,21 @@ function updateSystems(dt) {
       p.vel.x += (P.vel.x * kick - p.vel.x) * 0.3; p.vel.z += (P.vel.z * kick - p.vel.z) * 0.3;
     }
   }
+  // Walking into the MRI scan room with metal on you
+  const inMri = zoneAtWorld(P.pos.x, P.pos.z)?.id === 'mri' && !P.hidden;
+  if (inMri && !G.quenched) {
+    const rad = G.npcs.find((n) => n.role === 'radiographer' && n.scanner === 'mri');
+    if (!G.wasInMri && rad && (P.held?.T.metal || P.pushing?.T.metal || !G.pagerGone)) rad.say(pick(['STOP! METAL!', 'Did you fill in the safety questionnaire?!', 'NOT WITH THAT! ZONE FOUR!']), 3, true);
+    if (!G.pagerGone && P.pos.x > 35) {
+      G.pagerGone = true;
+      G.pagerStuck = true;
+      const pg = G.props.spawn('pager', P.pos.x, 1.0, P.pos.z);
+      pg.vel.set(3, 1, 0);
+      toast('Your pager rips off your belt and flies into the magnet. The pages have stopped. This might be the best night of your life.', 'good');
+      if (!G.cardsWiped) { G.cardsWiped = true; setTimeout(() => toast('Also, your bank cards have been wiped. And your hospital ID. The door readers no longer know you.'), 3500); }
+    }
+  }
+  G.wasInMri = inMri;
   // MRI yanks metal out of your hands
   if (!G.quenched && P.pos.x > 33.6 && P.pos.z < 8.6) {
     const m = G.world.magnet;
@@ -1380,7 +1404,7 @@ function updateSystems(dt) {
   const N = G.npcs;
   for (let i = 0; i < N.length; i++) {
     const a = N[i];
-    if (a.state === 'lie' || a.state === 'sit') continue;
+    if (a.state === 'lie' || a.state === 'sit' || a.state === 'pinned') continue;
     const dxp = a.pos.x - P.pos.x, dzp = a.pos.y - P.pos.z, dp = Math.hypot(dxp, dzp);
     const pSpeed = Math.hypot(P.vel.x, P.vel.z);
     if (dp < 0.75 && pSpeed > 5 && !P.hidden && a.state !== 'knocked' && a.role !== 'ghost') {
@@ -1402,7 +1426,7 @@ function updateSystems(dt) {
     }
     for (let j = i + 1; j < N.length; j++) {
       const b = N[j];
-      if (b.state === 'lie' || b.state === 'sit') continue;
+      if (b.state === 'lie' || b.state === 'sit' || b.state === 'pinned') continue;
       const dx = b.pos.x - a.pos.x, dz = b.pos.y - a.pos.y, d = Math.hypot(dx, dz);
       if (d < 0.55 && d > 1e-4) {
         const k = (0.55 - d) / 2;
@@ -1486,6 +1510,8 @@ function endShift() {
   const headlines = [];
   if (s.standDowns) headlines.push(`${s.standDowns} DOCTOR${s.standDowns > 1 ? 'S' : ''} STOOD DOWN AFTER NIGHT-LONG RISKMANN BLITZ BY RADIOLOGIST`);
   else if (s.riskmansFiled >= 5) headlines.push(`RADIOLOGIST FILES ${s.riskmansFiled} INCIDENT REPORTS IN ONE NIGHT`);
+  if (s.pinned) headlines.push(`${s.pinned} STAFF PINNED TO MRI MAGNET; PHYSICIST "NOT SURPRISED"`);
+  if (G.pagerGone) headlines.push('RADIOLOGIST\'S PAGER FOUND STUCK TO MRI; "FIRST QUIET NIGHT IN YEARS"');
   if (s.radiationDoses >= 3) headlines.push(`RADIOLOGIST STANDS IN SCAN ROOM ${s.radiationDoses} TIMES; RADIOGRAPHERS UNION CONSULTED`);
   if (s.zaps) headlines.push(`${s.zaps} PEOPLE DEFIBRILLATED "FOR NO CLINICAL REASON"`);
   if (s.kicks + s.tackles >= 5) headlines.push('ED STAFF REQUEST SHIN GUARDS FOR NIGHT SHIFT');
@@ -1518,7 +1544,7 @@ function endShift() {
     ['Arguments won / lost', `${s.argumentsWon} / ${s.argumentsLost}`], ['Wild arguments that worked', s.wildWins], ['Times hidden', s.hides], ['Times found hiding', s.timesFound],
     ['Kicks / tackles', `${s.kicks} / ${s.tackles}`], ['Defibrillated (not in arrest)', s.zaps], ['Slipped on your spill', s.slips], ['Bedpan bonks', s.bonks],
     ['RiskManns filed / upheld', `${s.riskmansFiled} / ${s.riskmansUpheld}`], ['Vexatious reports', s.vexatious], ['Colleagues stood down', s.standDowns], ['RiskManns about you', G.riskman.aboutYou.length],
-    ['Patients scanned tonight', s.scanned], ['Times you stood in the room during a scan', s.radiationDoses],
+    ['Patients scanned tonight', s.scanned], ['People pinned to the MRI', s.pinned], ['Pages missed (pager in magnet)', s.pagesMissed], ['Times you stood in the room during a scan', s.radiationDoses],
     ['Straight-to-theatre calls', s.clinicalCalls], ['Searches evaded', s.searchesEvaded], ['Knocks on your door', s.knocks], ['Lift rides', s.liftRides], ['Things thrown off the roof', s.roofThrows],
   ];
   $('m-stats').innerHTML = rows.map(([k, v]) => `<div><span>${k}</span><b>${v}</b></div>`).join('');

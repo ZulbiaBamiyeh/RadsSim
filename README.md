@@ -122,6 +122,11 @@ At the PACS workstation:
 - **Machines go down.** A machine stops scanning when there's a fire in its room, the sprinklers are on, the magnet has been quenched, or its radiographer is kicked, zapped, evacuated or called into a RiskMann meeting.
   - Its queue stops moving, and ED pages you asking why.
   - Stand in the CT or X-ray room during an exposure and the radiographer shouts at you and restarts the scan.
+- **MRI safety (or lack of it):**
+  - **Your pager:** walk into the MRI scan room and it rips off your belt and sticks to the magnet. Pages stop entirely until you quench the magnet and pick it back up. Your bank cards are wiped too.
+  - **Staff:** anyone carrying metal who strays into the room gets dragged onto the magnet and pinned there until someone presses the quench button. That includes registrars with stethoscopes, nurses with scissors, security with keys, firefighters in helmets and the DMS with cufflinks. Lure your chasers in.
+  - **The radiographer** shouts "STOP! METAL!" when you walk in.
+  - **Flying metal mid-scan** ruins the scan and it restarts.
 - **New studies to report:** chest X-rays (pneumothorax, consolidation, free gas under the diaphragm, pleural effusion) and MRI brains, stroke protocol, on T2-style contrast (acute infarct).
 
 ## Code map

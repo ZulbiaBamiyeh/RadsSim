@@ -24,6 +24,14 @@ const ROLES = {
 };
 const SKIN = ['#f1c9a5', '#e0ac69', '#c68642', '#8d5524', '#ffdbac', '#a0673c'];
 
+// Roles that carry metal (stethoscopes, scissors, keys, radios, helmets...). Radiographers are screened.
+const METAL_ROLES = new Set(['registrar', 'surgreg', 'consultant', 'nurse', 'nic', 'security', 'firefighter', 'dms', 'cleaner']);
+const METAL_ITEMS = {
+  registrar: ['stethoscope', 'trauma shears', 'pen torch'], surgreg: ['stethoscope', 'scalpel collection'], consultant: ['stethoscope', 'fancy watch'],
+  nurse: ['scissors', 'fob watch'], nic: ['keys', 'scissors'], security: ['keys', 'radio', 'handcuffs'], firefighter: ['helmet', 'axe', 'breathing apparatus'],
+  dms: ['cufflinks', 'laptop'], cleaner: ['mop bucket'],
+};
+
 export const LINES = {
   nag: ['Any chance you\'ve looked at bed 4?', 'Is the CT reported yet?', 'The surgeons are asking...', 'Just a quick question!', 'I\'ve paged you like six times', 'My consultant wants it NOW', 'Is it... bad?', 'Can you just have a quick look?', 'It\'s been four hours!', 'Bed block is insane, we need that report'],
   queue: ['Hey! Got a sec?', 'Oh! You\'re here!', 'Can I grab you for one?', '*holding a form hopefully*', 'Quick one...'],
@@ -230,6 +238,7 @@ export class NPC {
   setState(s, t = 0) { this.state = s; this.stateT = t; }
 
   knock(vx, vz, fromPlayer = true, up = 0, shout) {
+    if (this.state === 'pinned') { this.say('I\'m STUCK TO A MAGNET, leave me alone', 2); return; }
     if (!this.kv) { this.kv = new THREE.Vector2(); this.air = 0; this.vy = 0; }
     if (this.state === 'knocked') { this.kv.x += vx * 0.5; this.kv.y += vz * 0.5; this.vy = Math.max(this.vy, up); return; }
     this.detachBed();
@@ -250,6 +259,27 @@ export class NPC {
     this.say(this.role === 'cat' ? 'MREEEOW' : 'AAAAH I\'M ON FIRE', 2.5, true);
     sfx.scream();
     this.G.stats.npcsIgnited++;
+  }
+
+  pin() {
+    this.detachBed();
+    this.path = null;
+    this.pulledSaid = false;
+    // Flatten against the nearest face of the magnet housing.
+    const qx = Math.max(36, Math.min(this.pos.x, 39.2)), qz = Math.max(1.6, Math.min(this.pos.y, 5.4));
+    const nx = this.pos.x - qx, nz = this.pos.y - qz, nd = Math.hypot(nx, nz) || 1;
+    this.pinPos = { x: qx + (nx / nd) * 0.3, z: qz + (nz / nd) * 0.3 };
+    this.setState('pinned');
+    this.G.leaveQueue(this);
+    this.G.stats.pinned++;
+    sfx.clang();
+    this.say(pick(['CLANG', 'I\'M STUCK TO THE MRI', 'Well. This is happening.']), 3, true);
+    this.G.toast(`${this.name} has been pinned to the MRI magnet by their ${pick(METAL_ITEMS[this.role] || ['keys'])}.`, 'bad');
+  }
+  release() {
+    this.setState('idle', 1);
+    this.cooldown = 20;
+    this.knock(3, (Math.random() - 0.5) * 2, false, 1.5, 'FREEDOM!');
   }
 
   // Defibrillated: hair stands on end, they fly backwards.
@@ -403,6 +433,19 @@ export class NPC {
     const P = G.player.pos;
     const dP = this.distToPlayer();
 
+    // MRI: anyone carrying metal who strays into the scan room gets dragged onto the magnet.
+    if (this.state !== 'pinned' && !G.quenched && METAL_ROLES.has(this.role) && zoneAtWorld(this.pos.x, this.pos.y)?.id === 'mri') {
+      // Pulled toward the magnet housing (x 36-39.2, z 1.6-5.4); stick wherever they hit it.
+      const qx = Math.max(36, Math.min(this.pos.x, 39.2)), qz = Math.max(1.6, Math.min(this.pos.y, 5.4));
+      const dx = 37.6 - this.pos.x, dz = 3.5 - this.pos.y, d = Math.hypot(dx, dz) || 1;
+      if (Math.hypot(this.pos.x - qx, this.pos.y - qz) < 0.45) this.pin();
+      else if (this.state !== 'knocked') {
+        this.pos.x += (dx / d) * 5 * dt; this.pos.y += (dz / d) * 5 * dt;
+        this.face = Math.atan2(dx, dz);
+        if (!this.pulledSaid) { this.pulledSaid = true; this.say(pick(['WHOA—', 'MY STETHOSCOPE!', 'I CAN\'T STOP!', 'NOT AGAIN']), 1.5, true); }
+      }
+    }
+
     // Fire overrides
     if (this.state !== 'onfire' && this.role !== 'firefighter' && this.role !== 'ghost' && G.fire.at(this.pos.x, this.pos.y) > 0.35) this.ignite();
 
@@ -522,6 +565,15 @@ export class NPC {
         }
         break;
       }
+      case 'pinned': {
+        // Stuck to the magnet until someone quenches it.
+        this.pos.set(this.pinPos.x, this.pinPos.z);
+        this.face = Math.atan2(37.6 - this.pos.x, 3.5 - this.pos.y);
+        if (G.quenched) { this.release(); break; }
+        this.nagT -= dt;
+        if (this.nagT <= 0 && dP < 12) { this.say(pick(['Help!', 'Can someone call the physicist?', 'I can\'t feel my stethoscope.', 'Is it always this... magnetic?', 'Press the red button! No, the OTHER red button!', 'I\'ll just... report from here?']), 3); this.nagT = 6 + Math.random() * 5; }
+        break;
+      }
       case 'meeting': {
         // Pulled into a meeting after a RiskMann report: sits in the cafe looking chastened.
         this.meetingT -= dt;
@@ -620,7 +672,7 @@ export class NPC {
     } else if (this.state !== 'lie' && this.state !== 'sit') {
       this.pos.x += this.vel.x * dt; this.pos.y += this.vel.y * dt;
     }
-    if (this.state !== 'lie' && this.state !== 'sit') {
+    if (this.state !== 'lie' && this.state !== 'sit' && this.state !== 'pinned') {
       const c = { x: this.pos.x, z: this.pos.y };
       collideCircle(c, 0.28);
       this.pos.set(c.x, c.z);
@@ -657,6 +709,9 @@ export class NPC {
       b.rotation.x = -Math.PI / 2;
       b.position.set(0, 0.25 + (this.air || 0), 0.3);
       if (this.air > 0.05) b.rotation.z = this.walkT * 14;
+    } else if (this.state === 'pinned') {
+      b.rotation.x = 0.35;
+      b.position.set(0, 0.25, 0);
     } else if (this.state === 'sit') {
       b.position.y = -0.25;
     } else if (this.role === 'ghost') {
@@ -665,7 +720,7 @@ export class NPC {
       b.position.y = Math.abs(Math.sin(this.walkT * 9)) * 0.06;
     }
     if (this.arms) {
-      const panic = this.state === 'panic' || this.state === 'onfire';
+      const panic = this.state === 'panic' || this.state === 'onfire' || this.state === 'pinned';
       const sw = moving ? Math.sin(this.walkT * 9) * 0.6 : 0;
       this.arms[0].rotation.x = panic ? -2.8 + Math.sin(this.walkT * 20) * 0.4 : sw;
       const clip = this.role === 'registrar' || this.role === 'surgreg' || this.role === 'consultant';
