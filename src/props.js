@@ -1,6 +1,6 @@
 // Throwable / pushable physics props. Deliberately simple physics: circles on a grid, gravity, bounces.
 import * as THREE from 'three';
-import { collideCircle, groundAt } from './map.js';
+import { collideCircle, groundAt, zoneAtWorld } from './map.js';
 import { mat } from './world.js';
 import { sfx } from './audio.js';
 
@@ -170,7 +170,7 @@ export class Props {
       if (T.metal && !G.quenched) {
         const dx = mag.x - p.pos.x, dy = mag.y - p.pos.y, dz = mag.z - p.pos.z;
         const d2 = dx * dx + dy * dy + dz * dz;
-        if (d2 < 81 && p.pos.z < 8.6 && p.pos.x > 33.6) {
+        if (d2 < 81 && zoneAtWorld(p.pos.x, p.pos.z)?.id === 'mri') {
           p.pulled = true;
           const d = Math.sqrt(d2);
           if (d < 0.7) {

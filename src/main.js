@@ -1390,7 +1390,7 @@ function updateSystems(dt) {
   }
   G.wasInMri = inMri;
   // MRI yanks metal out of your hands
-  if (!G.quenched && P.pos.x > 33.6 && P.pos.z < 8.6) {
+  if (!G.quenched && zoneAtWorld(P.pos.x, P.pos.z)?.id === 'mri') {
     const m = G.world.magnet;
     const d = Math.hypot(m.x - P.pos.x, m.z - P.pos.z);
     const held = P.held || P.pushing;
