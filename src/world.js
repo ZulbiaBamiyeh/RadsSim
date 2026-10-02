@@ -318,11 +318,11 @@ export function buildWorld(scene) {
   scene.add(boreInner);
   furniture(scene, 39.2, 3.15, 41.9, 3.85, 0.8, '#d7dce2');
   out.magnet = { x: 39.3, y: 1.2, z: 3.5 };
-  const qb = box(scene, 0.25, 0.25, 0.08, '#d00', 31.2, 1.4, 7.94);
+  const qb = box(scene, 0.08, 0.25, 0.25, '#d00', 30.04, 1.4, 6.3);
   qb.material = new THREE.MeshBasicMaterial({ color: '#e11' });
-  sign(scene, 'EMERGENCY\nQUENCH', 31.2, 1.8, 7.95, Math.PI, 0.6, 0.3, { bg: '#fff', fg: '#c00', font: 'bold 44px Arial' });
+  sign(scene, 'EMERGENCY\nQUENCH', 30.03, 1.8, 6.3, Math.PI / 2, 0.6, 0.3, { bg: '#fff', fg: '#c00', font: 'bold 44px Arial' });
   sign(scene, '⚠ ZONE 4: MAGNET IS ALWAYS ON', 36.5, 2.5, 8.99, 0, 2.8, 0.4, { bg: '#e8c547', fg: '#111', font: 'bold 38px Arial' });
-  out.interactables.push({ id: 'quench', x: 31.2, z: 7.2, r: 1.2, label: 'Press EMERGENCY QUENCH' });
+  out.interactables.push({ id: 'quench', x: 30.8, z: 6.3, r: 1.2, label: 'Press EMERGENCY QUENCH' });
   furniture(scene, 30.1, 2.0, 30.9, 4.8, 0.8, '#4a5663');
   box(scene, 0.05, 0.4, 0.7, '#0a0', 30.9, 1.1, 3.4).material = new THREE.MeshBasicMaterial({ color: '#2a2150' });
   sign(scene, 'MRI CONTROL', 31.5, 2.6, 9.02, 0, 1.4, 0.3);
