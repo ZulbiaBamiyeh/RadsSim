@@ -100,13 +100,10 @@ I would like to thank the surgical registrars for teaching me that every scan is
 Yours sincerely,
 (the radiologist)
 
-P.S. The fish in the tea room was me.
-
 I've drafted a resignation letter based on your notes. A few suggestions before you send it:
 
 - You may want to keep the tone more positive, as it's generally wise to maintain good professional relationships with a former employer.
 - "Effective immediately / at 08:00 / when I find my car" should be a single date. Most contracts require a notice period of four to twelve weeks.
-- Consider removing the postscript.
 
 Would you like me to write a more formal version?`,
   },
