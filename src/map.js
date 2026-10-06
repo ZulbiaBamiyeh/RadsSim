@@ -3,7 +3,7 @@
 // Three disconnected regions share the grid, joined only by the lift:
 //   main building + ambulance bay (x 0-63), roof (x 65-95, y 0-14), basement (x 65-95, y 16-29).
 export const W = 96;
-export const H = 30;
+export const H = 44;
 
 export const grid = [];
 for (let y = 0; y < H; y++) grid.push(new Array(W).fill(' '));
@@ -26,8 +26,10 @@ fill(44, 14, 51, 24, '.'); // chapel
 fill(53, 14, 62, 19, '.'); // cafe
 fill(53, 21, 57, 24, '.'); // staff toilets (through the cafe)
 fill(59, 21, 62, 24, '.'); // supply cupboard (through the cafe)
-fill(0, 26, 63, 29, 'F');
-fill(1, 26, 62, 28, 'o'); // ambulance bay
+fill(0, 26, 63, 43, 'F');          // fence box around the whole outdoor area
+fill(1, 26, 62, 28, 'o');          // ambulance bay
+fill(1, 31, 62, 42, 'o');          // staff car park
+for (let y = 29; y <= 30; y++) for (let x = 27; x <= 35; x++) grid[y][x] = 'o'; // driveway ramp between them
 const punch = (y, x0, x1) => { for (let x = x0; x <= x1; x++) grid[y][x] = '.'; };
 punch(8, 4, 5);   // reading room door
 punch(8, 13, 14); // tea room
@@ -80,6 +82,7 @@ export const ZONES = [
   { id: 'chapel', name: 'Chapel', x0: 44, y0: 14, x1: 51, y1: 24, floor: '#7d6a8c', fuel: 0.9 },
   { id: 'cafe', name: 'Cafe (closed)', x0: 53, y0: 14, x1: 62, y1: 20, floor: '#c9b27c', fuel: 0.5 },
   { id: 'outside', name: 'Ambulance Bay', x0: 1, y0: 25, x1: 62, y1: 28, floor: '#3d3f44', fuel: 0 },
+  { id: 'carpark', name: 'Staff Car Park', x0: 1, y0: 29, x1: 62, y1: 42, floor: '#44474d', fuel: 0, outdoor: true },
   { id: 'roof', name: 'Roof / Helipad', x0: 66, y0: 1, x1: 94, y1: 13, floor: '#4a4d52', fuel: 0, outdoor: true },
   { id: 'morgue', name: 'Morgue', x0: 66, y0: 17, x1: 77, y1: 19, floor: '#b8c4c8', fuel: 0.2 },
   { id: 'archive', name: 'Film Archive', x0: 79, y0: 17, x1: 94, y1: 19, floor: '#7a6848', fuel: 2.0 },

@@ -14,7 +14,8 @@ import { initAudio, sfx, setAlarm, crackle, rain } from './audio.js';
 import { isTouchDevice, setupTouch } from './touch.js';
 import { startArgument } from './argue.js';
 import { Scanning } from './scanning.js';
-import { openRiskman, reportAboutYou, RISKMAN_OUTCOMES } from './riskman.js';
+import { Cars } from './cars.js';
+import { openRiskman, reportAboutYou, RISKMAN_OUTCOMES, deliverOrders } from './riskman.js';
 
 const $ = (id) => document.getElementById(id);
 const pick = (a) => a[Math.floor(Math.random() * a.length)];
@@ -54,6 +55,7 @@ const G = {
     fires: 0, alarms: 0, hits: 0, throws: 0, bedsLaunched: 0, bedCrashes: 0, npcsIgnited: 0, pages: 0, nags: 0,
     argumentsWon: 0, clinicalCalls: 0, kicks: 0, tackles: 0, zaps: 0, slips: 0, bonks: 0,
     radiationDoses: 0, scanned: 0, pinned: 0, pagesMissed: 0,
+    carsSmashed: 0, carsJacked: 0, carCrashes: 0, ranOver: 0, golfBalls: 0, honks: 0, batHits: 0, ordersPlaced: 0, orderSpend: 0,
     riskmansFiled: 0, riskmansUpheld: 0, vexatious: 0, standDowns: 0, argumentsLost: 0, wildWins: 0, wildUsed: null, consultantCalls: 0, rumors: 0,
     hides: 0, timesFound: 0, searchesEvaded: 0, knocks: 0, liftRides: 0, roofFalls: 0, roofThrows: 0, boilers: 0, helis: 0, ghostChats: 0, ancient: 0, foundIn: null,
     caught: 0, sandwiches: 0, catPets: 0, quenches: 0, mriStuck: 0, rockets: 0, peakList: 0, formsBounced: 0, goodCatches: 0, naps: 0, selfIgnitions: 0, ctJokes: 0,
@@ -72,6 +74,8 @@ G.props = new Props(scene);
 G.player = new Player(camera, canvas);
 G.pacs = new Pacs(G);
 G.scan = new Scanning(G);
+G.cars = new Cars(G);
+G.orders = [];
 
 const fireLights = [];
 for (let i = 0; i < 4; i++) {
@@ -280,6 +284,13 @@ G.toast = toast;
 
 G.page = (t) => page(t);
 G.reportAboutYou = (from, cat, note) => { reportAboutYou(G, from, cat, note); toast(`${from} has filed a RiskMann about you.`, 'bad'); };
+G.onDelivery = (o) => {
+  const spot = { x: 10 + rand(-2, 2), z: 27 };
+  if (!o.give.length) { toast(`A courier drone drops your "${o.name}" at the ambulance bay. The box is empty. Of course it is.`); sfx.ding(); return; }
+  for (let i = 0; i < o.give.length; i++) G.props.spawn(o.give[i], spot.x + i * 0.5, 1.2, spot.z).vel.set(rand(-1, 1), 1, rand(-1, 1));
+  sfx.ding();
+  toast(`Delivery! Your ${o.name} has landed in the ambulance bay.`, 'good');
+};
 function page(text) {
   if (G.pagerStuck) { G.stats.pagesMissed++; return; } // it's stuck to the MRI. Bliss.
   G.stats.pages++;
@@ -305,7 +316,7 @@ function updateHud() {
   let hint = '';
   if (G.player.held) {
     const u = G.player.held.T.use;
-    hint = 'LMB throw · Q drop' + (u === 'spray' ? ' · RMB spray (look down to fly)' : u === 'ignite' ? ' · RMB flick lighter' : u === 'eat' ? ' · RMB eat' : u === 'drink' ? ' · RMB drink' : u === 'zap' ? ' · RMB "CLEAR!"' : '');
+    hint = 'LMB throw · Q drop' + (u === 'spray' ? ' · RMB spray (look down to fly)' : u === 'ignite' ? ' · RMB flick lighter' : u === 'eat' ? ' · RMB eat' : u === 'drink' ? ' · RMB drink' : u === 'zap' ? ' · RMB "CLEAR!"' : u === 'golf' ? ' · RMB swing a golf ball' : u === 'bat' ? ' · RMB swing the bat' : u === 'honk' ? ' · RMB honk' : '');
   } else if (G.player.pushing) hint = 'LMB launch bed · E let go';
   setText('held-hint', hint);
   $('alarm-vignette').hidden = !G.alarm;
@@ -512,7 +523,10 @@ function nearInteractable() {
 
 function currentPrompt() {
   if (G.player.hidden) return '';
+  if (G.player.inCar) return `Driving ${G.player.inCar.owner}\nWASD drive · Shift floor it · E — get out`;
   if (G.player.pushing) return 'E — let go of the bed';
+  const car = G.cars.nearest(G.player.pos.x, G.player.pos.z, 2.6);
+  if (car) return `${car.owner[0].toUpperCase() + car.owner.slice(1)} (${car.plate})\nE — break in and hotwire it${car.smashed ? '' : ' · LMB/kick to smash a window'}`;
   const t = lookTarget();
   if (t?.npc) {
     const n = t.npc;
@@ -536,9 +550,12 @@ function currentPrompt() {
 function interact() {
   const P = G.player;
   if (P.hidden) { unhide('You come out of hiding.'); return; }
+  if (P.inCar) { G.cars.exit(); return; }
   if (P.pushing) { releaseBed(false); return; }
   const t = lookTarget();
   if (t?.npc) { talk(t.npc); return; }
+  const car = G.cars.nearest(P.pos.x, P.pos.z, 2.6);
+  if (car && !(t?.prop && t.dist < 1.6) && !nearInteractable()) { G.cars.enter(car); return; }
   const it = nearInteractable();
   if (it?.hide) { hide(it.hide); return; }
   if (it) { useStation(it.id); return; }
@@ -898,6 +915,9 @@ function kick() {
     t.prop.vel.set(f.x * 6, 0, f.z * 6);
     sfx.thud(0.8);
     if (t.prop.rider) t.prop.rider.say('HEY! I\'m a patient!', 2, true);
+  } else {
+    const c = G.cars.nearest(P.pos.x + f.x * 1.6, P.pos.z + f.z * 1.6, 2);
+    if (c) G.cars.smash(c, 'You');
   }
 }
 G.kick = kick;
@@ -912,7 +932,7 @@ function spill(p) {
 
 function handleMouse(dt) {
   const P = G.player;
-  if (P.hidden) { P.mouse.leftPressed = false; G.jetpack = false; return; }
+  if (P.hidden || P.inCar) { P.mouse.leftPressed = false; G.jetpack = false; return; }
   if (P.mouse.leftPressed) {
     P.mouse.leftPressed = false;
     if (P.held) {
@@ -997,6 +1017,32 @@ function handleMouse(dt) {
         }
         for (let i = 0; i < 6; i++) G.flameFx.emit(e.x + d.x * 0.7, e.y - 0.25, e.z + d.z * 0.7, rand(-0.1, 0.1), 0.6, rand(-0.1, 0.1), 0.3, 0.12, 0.04, 1, 0.6, 0.15, 1);
         if (!done && Math.random() < 0.3) toast('*flick* Nothing flammable there. Yet.');
+      } else if (h.T.use === 'golf') {
+        const e = P.eye();
+        sfx.whoosh();
+        const ball = G.props.spawn('golfball', e.x + d.x * 0.7, e.y - 0.05, e.z + d.z * 0.7);
+        const power = 36;
+        ball.vel.set(d.x * power + P.vel.x, Math.max(5, d.y * power + 8), d.z * power + P.vel.z);
+        ball.spin = rand(-20, 20);
+        G.stats.golfBalls++;
+        if (G.stats.golfBalls === 1) toast('FORE! Each swing tees up a fresh ball. Try it off the roof.');
+        const balls = G.props.list.filter((b) => b.type === 'golfball');
+        if (balls.length > 25) G.props.remove(balls[0]);
+      } else if (h.T.use === 'bat') {
+        sfx.whoosh();
+        const f = P.forward();
+        const t2 = lookTarget(2.6);
+        if (t2?.npc && t2.npc.state !== 'lie') { sfx.thud(1); G.stats.batHits++; t2.npc.knock(f.x * 11, f.z * 11, true, 4, pick(['HOWZAT!', 'OOF', 'NOT CRICKET', 'MY RIBS'])); }
+        else if (t2?.prop && !t2.prop.T.bed && !t2.prop.stuck) { const kk = 15 / Math.sqrt(Math.max(1, t2.prop.T.mass / 2)); t2.prop.vel.set(f.x * kk, 4, f.z * kk); t2.prop.spin = rand(-15, 15); sfx.thud(0.8); G.stats.batHits++; }
+        else { const c = G.cars.nearest(P.pos.x + f.x * 1.8, P.pos.z + f.z * 1.8, 2.2); if (c) { G.cars.smash(c, 'You'); G.stats.batHits++; } }
+      } else if (h.T.use === 'honk') {
+        sfx.honk();
+        G.stats.honks++;
+        for (const n of G.npcs) {
+          const dx = n.pos.x - P.pos.x, dz = n.pos.y - P.pos.z, dd = Math.hypot(dx, dz);
+          if (dd < 7 && dd > 0.1 && !['knocked', 'lie', 'pinned'].includes(n.state)) n.knock((dx / dd) * 2, (dz / dd) * 2, false, 2.2, pick(['AAH!', 'WHAT THE—', 'MY EARS', 'NOT FUNNY']));
+        }
+        toast('You blast the air horn. Everyone within earshot leaves the ground.');
       } else if (h.T.use === 'eat') {
         P.held = null; G.props.remove(h); sfx.munch(); G.stats.sandwiches++;
         toast(pick(['Delicious. Someone is going to be furious.', 'You eat the sandwich. Sandwich Guy saw that.', 'Best sandwich of your career.']));
@@ -1204,6 +1250,7 @@ function updateSystems(dt) {
 
   // Fire
   G.scan.update(dt);
+  deliverOrders(G);
   G.fire.update(dt);
   const burning = G.fire.burning.length > 0;
   if (burning) { G.alarmT += dt; G.noFireT = 0; } else G.noFireT += dt;
@@ -1293,10 +1340,10 @@ function updateSystems(dt) {
   // Props: burning, O2 rockets, hitting people
   for (const p of G.props.list.slice()) {
     if (p.pos.y < -8) {
-      G.stats.roofThrows++;
       if (G.player.held === p) G.player.held = null;
       G.props.remove(p);
-      toast(pick([`The ${p.T.name.toLowerCase()} falls six storeys. A car alarm goes off.`, `The ${p.T.name.toLowerCase()} disappears into the night. Someone below shouts.`, 'A distant crunch. You decide not to look.']));
+      if (p.T.light) toast(pick(['The golf ball sails off into the dark. A distant car alarm answers.', 'FORE! A faint tinkle of broken glass somewhere below.', 'The ball vanishes over the edge. A seagull files a complaint.']));
+      else { G.stats.roofThrows++; toast(pick([`The ${p.T.name.toLowerCase()} falls six storeys. A car alarm goes off.`, `The ${p.T.name.toLowerCase()} disappears into the night. Someone below shouts.`, 'A distant crunch. You decide not to look.'])); }
       continue;
     }
     const I = G.fire.at(p.pos.x, p.pos.z);
@@ -1332,15 +1379,18 @@ function updateSystems(dt) {
     if (p.T.spill && !p.spilled && !p.held && Math.hypot(p.vel.x, p.vel.z) > 3.5) spill(p);
     if (p.rocket > 0) { p.rocket -= dt; for (let k = 0; k < 3; k++) G.flames(p.pos.x, p.pos.y, p.pos.z, 1.2); if (Math.random() < 0.2) G.fire.ignite(p.pos.x, p.pos.z, 0.3); }
     const sp = p.pushed ? Math.hypot(G.player.vel.x, G.player.vel.z) : Math.hypot(p.vel.x, p.vel.z, p.vel.y * 0.5);
+    // Fast projectile smashes a car window.
+    if (sp > 5 && !p.held && !p.pushed && p.pos.y < 1.6 && G.cars.hitAt(p.pos.x, p.pos.z, p.pos.y)) p.vel.multiplyScalar(-0.3);
     if (sp > 3.2 && !p.held) {
       for (const n of G.npcs) {
         if (n === p.rider || n.state === 'knocked' || n.state === 'lie') continue;
         const dx = n.pos.x - p.pos.x, dz = n.pos.y - p.pos.z;
-        if (dx * dx + dz * dz < (p.T.r + 0.3) ** 2 && p.pos.y < n.hitH) {
+        if (dx * dx + dz * dz < (p.T.r + 0.4) ** 2 && p.pos.y < n.hitH) {
           const vx = p.pushed ? G.player.vel.x : p.vel.x, vz = p.pushed ? G.player.vel.z : p.vel.z;
-          if (p.T.bonk) { sfx.clang(); G.stats.bonks++; n.knock(vx * 0.7, vz * 0.7, true, 2, pick(['BONK', '*CLANG*', 'IS THAT A BEDPAN?!'])); }
+          if (p.T.light) { sfx.ow(); n.knock(vx * 0.12, vz * 0.12, false, 0.4, pick(['OW!', 'OI!', 'MY EYE!', 'FORE?!'])); p.vel.multiplyScalar(0.4); }
+          else if (p.T.bonk) { sfx.clang(); G.stats.bonks++; n.knock(vx * 0.7, vz * 0.7, true, 2, pick(['BONK', '*CLANG*', 'IS THAT A BEDPAN?!'])); }
           else n.knock(vx * 0.7, vz * 0.7, true);
-          if (!p.pushed && !p.T.bed) p.vel.multiplyScalar(0.3);
+          if (!p.pushed && !p.T.bed && !p.T.light) p.vel.multiplyScalar(0.3);
         }
       }
     }
@@ -1498,6 +1548,7 @@ if (G.touch) setupTouch(G);
 
 function endShift() {
   G.mode = 'morning';
+  if (G.cars.driving) G.cars.exit();
   G.player.unlock();
   setAlarm(false);
   G.world.alarmLight.intensity = 0;
@@ -1505,11 +1556,16 @@ function endShift() {
   const s = G.stats;
   const unrep = G.list();
   const argued = G.cases.filter((c) => c.cancelled && c.cancelled !== 'clinical' && c.path !== 'normal');
-  const chaos = s.kicks * 2 + s.tackles * 2 + s.zaps * 4 + s.slips + s.bonks + s.standDowns * 5 + s.wildWins * 4 + s.roofFalls * 5 + s.boilers * 6 + s.helis * 3 + s.roofThrows + s.fires * 3 + s.hits + s.bedsLaunched * 2 + s.npcsIgnited * 4 + s.mriStuck * 2 + s.quenches * 10 + s.rockets * 5 + s.caught * 3 + s.ctJokes * 2 + s.sandwiches;
+  const chaos = s.kicks * 2 + s.tackles * 2 + s.zaps * 4 + s.slips + s.bonks + s.standDowns * 5 + s.wildWins * 4 + s.roofFalls * 5 + s.boilers * 6 + s.helis * 3 + s.roofThrows + s.fires * 3 + s.hits + s.bedsLaunched * 2 + s.npcsIgnited * 4 + s.mriStuck * 2 + s.quenches * 10 + s.rockets * 5 + s.caught * 3 + s.ctJokes * 2 + s.sandwiches + s.carsJacked * 4 + s.carsSmashed * 2 + s.ranOver * 3 + s.golfBalls + s.honks;
   const clinical = s.correct * 10 + s.nailed * 5 - s.wrong.length * 8 - unrep * 5 + s.goodCatches * 4 - argued.length * 6 + s.clinicalCalls * 8;
   const headlines = [];
   if (s.standDowns) headlines.push(`${s.standDowns} DOCTOR${s.standDowns > 1 ? 'S' : ''} STOOD DOWN AFTER NIGHT-LONG RISKMANN BLITZ BY RADIOLOGIST`);
   else if (s.riskmansFiled >= 5) headlines.push(`RADIOLOGIST FILES ${s.riskmansFiled} INCIDENT REPORTS IN ONE NIGHT`);
+  if (s.ranOver >= 2) headlines.push(`CAR DRIVEN THROUGH ED; ${s.ranOver} "CARTOONISHLY" INJURED`);
+  else if (s.carsJacked) headlines.push('STAFF CAR PARK "NO LONGER SAFE", RADIOLOGIST SUSPECTED');
+  if (s.carsSmashed >= 3) headlines.push(`${s.carsSmashed} CARS VANDALISED IN ONE NIGHT; ALARMS "WENT ON FOR HOURS"`);
+  if (s.golfBalls >= 20) headlines.push('GOLF BALLS RAINING ON CAR PARK; "IS SOMEONE ON THE ROOF?"');
+  if (s.orderSpend >= 2000) headlines.push(`RADIOLOGY COST CENTRE $${s.orderSpend.toLocaleString()} OVER ON "EQUIPMENT"`);
   if (s.pinned) headlines.push(`${s.pinned} STAFF PINNED TO MRI MAGNET; PHYSICIST "NOT SURPRISED"`);
   if (G.pagerGone) headlines.push('RADIOLOGIST\'S PAGER FOUND STUCK TO MRI; "FIRST QUIET NIGHT IN YEARS"');
   if (s.radiationDoses >= 3) headlines.push(`RADIOLOGIST STANDS IN SCAN ROOM ${s.radiationDoses} TIMES; RADIOGRAPHERS UNION CONSULTED`);
@@ -1546,6 +1602,8 @@ function endShift() {
     ['RiskManns filed / upheld', `${s.riskmansFiled} / ${s.riskmansUpheld}`], ['Vexatious reports', s.vexatious], ['Colleagues stood down', s.standDowns], ['RiskManns about you', G.riskman.aboutYou.length],
     ['Patients scanned tonight', s.scanned], ['People pinned to the MRI', s.pinned], ['Pages missed (pager in magnet)', s.pagesMissed], ['Times you stood in the room during a scan', s.radiationDoses],
     ['Straight-to-theatre calls', s.clinicalCalls], ['Searches evaded', s.searchesEvaded], ['Knocks on your door', s.knocks], ['Lift rides', s.liftRides], ['Things thrown off the roof', s.roofThrows],
+    ['Cars broken into', s.carsJacked], ['Car windows smashed', s.carsSmashed], ['Car crashes', s.carCrashes], ['People run over (cartoonishly)', s.ranOver],
+    ['Golf balls hit', s.golfBalls], ['Air horn blasts', s.honks], ['RiskBay orders', s.ordersPlaced], ['Spent on RiskBay', `$${s.orderSpend.toLocaleString()}`],
   ];
   $('m-stats').innerHTML = rows.map(([k, v]) => `<div><span>${k}</span><b>${v}</b></div>`).join('');
   const mm = s.wrong.slice(0, 8).map((c) => `<li><b>${c.patient}</b>, ${c.study}: you said "${FINDINGS[c.modality][c.finding]}". It was <b>${FINDINGS[c.modality][c.path]}</b>.</li>`);
@@ -1588,6 +1646,7 @@ function frame(now) {
     G.time += dt * GAME_MIN_PER_SEC;
     if (G.time >= SHIFT_MINUTES) endShift();
     G.player.enabled = G.mode === 'play';
+    if (G.mode === 'play') G.cars.update(dt);
     G.player.update(dt, G);
     if (G.mode === 'play') handleMouse(dt);
     G.props.update(dt, G);

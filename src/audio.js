@@ -73,6 +73,7 @@ export const sfx = {
   hiss() { noise(4, { vol: 0.35, freq: 3000, q: 0.3, type: 'highpass' }); },
   munch() { for (let i = 0; i < 3; i++) noise(0.07, { vol: 0.15, freq: 900, delay: i * 0.18 }); },
   meow() { tone(700, 0.35, { type: 'triangle', vol: 0.08, slide: 400 }); },
+  honk() { tone(440, 0.5, { type: 'sawtooth', vol: 0.18 }); tone(554, 0.5, { type: 'square', vol: 0.12 }); tone(220, 0.5, { type: 'sawtooth', vol: 0.1 }); },
 };
 
 // Looping ambience: fire alarm, crackle, sprinklers.

@@ -25,6 +25,21 @@ const CATEGORIES = [
 ];
 const SEVERITY = ['Negligible', 'Minor', 'Moderate', 'Major', 'Catastrophic'];
 
+// RiskBay: order things to the departmental cost centre. Each item delivers one or more props.
+const SHOP = [
+  { id: 'golf', name: 'Executive golf set (7-iron + balls)', price: 189, give: ['golfclub'], blurb: 'Tee up endless balls and swing them into anything. "Team building."' },
+  { id: 'bat', name: 'Cricket bat, premium willow', price: 119, give: ['bat'], blurb: 'For morale. And windows.' },
+  { id: 'airhorn', name: 'Marine air horn, 120 dB', price: 39, give: ['airhorn'], blurb: 'Instantly relocates anyone nearby to the ceiling.' },
+  { id: 'cones', name: '3 × traffic cones', price: 29, give: ['cone', 'cone', 'cone'], blurb: 'Close a corridor. Become unaccountable.' },
+  { id: 'o2', name: 'Pallet of oxygen cylinders', price: 450, give: ['o2', 'o2', 'o2'], blurb: 'For clinical use only. (They make excellent rockets near fire.)' },
+  { id: 'kebab', name: 'Family-size kebab (next-hour delivery)', price: 24, give: ['kebab'], blurb: 'The only correct 3am meal.' },
+  { id: 'extinguisher', name: 'Reconditioned fire extinguisher', price: 349, give: ['extinguisher'], blurb: 'Fire safety. Also a jetpack. Look down and hold.' },
+  { id: 'defib', name: 'Spare defibrillator', price: 1299, give: ['defib'], blurb: 'CLEAR! (Not for use on colleagues. Allegedly.)' },
+  { id: 'bucket', name: 'Mop bucket, pre-filled', price: 35, give: ['bucket'], blurb: 'A slip hazard with no sign. Chef\'s kiss.' },
+  { id: 'keys', name: '"Definitely legitimate" car keys', price: 999, give: [], blurb: 'Arrives as an empty box. The cars don\'t need keys anyway.' },
+];
+const START_BUDGET = 4000;
+
 export function openRiskman(G, { onClose }) {
   const modal = $('riskman');
   const people = G.npcs.filter((n) => n.role !== 'ghost' && !n.remove);
@@ -40,6 +55,7 @@ export function openRiskman(G, { onClose }) {
   $('rm-result').innerHTML = '';
   $('rm-submit').disabled = false;
   renderLists(G);
+  renderShop(G);
   tab('file');
   for (const t of document.querySelectorAll('[data-rmtab]')) t.onclick = () => tab(t.dataset.rmtab);
   $('rm-close').onclick = () => { modal.hidden = true; onClose(); };
@@ -64,6 +80,38 @@ function renderLists(G) {
   $('rm-about').innerHTML = about.length
     ? about.map((r) => `<tr><td>${r.ref}</td><td>${esc(r.from)}</td><td>${esc(r.category)}</td><td>${esc(r.note)}</td></tr>`).join('')
     : '<tr><td colspan="4" class="rm-empty">Nobody has reported you. That you know of.</td></tr>';
+}
+
+function renderShop(G) {
+  if (G.budget === undefined) G.budget = START_BUDGET;
+  const bal = $('rm-budget');
+  bal.textContent = `Cost centre: $${G.budget.toLocaleString()}`;
+  bal.className = G.budget < 0 ? 'rm-over' : '';
+  const el = $('rm-shop');
+  el.innerHTML = SHOP.map((it) => `<div class="rm-item"><div class="rm-item-name">${esc(it.name)}</div><div class="rm-item-blurb">${esc(it.blurb)}</div><div class="rm-item-buy"><span class="rm-price">$${it.price}</span><button data-buy="${it.id}">Order now</button></div></div>`).join('');
+  for (const b of el.querySelectorAll('[data-buy]')) b.onclick = () => buy(G, b.dataset.buy);
+}
+
+function buy(G, id) {
+  const it = SHOP.find((x) => x.id === id);
+  if (!it) return;
+  G.budget -= it.price;
+  G.stats.ordersPlaced++;
+  G.stats.orderSpend += it.price;
+  G.orders.push({ give: it.give, name: it.name, at: G.time + 3 + Math.random() * 3 });
+  if (G.budget < 0 && !G.budgetFlagged) { G.budgetFlagged = true; reportAboutYou(G, 'Finance', 'Cost centre overspend', `The radiology cost centre is $${(-G.budget).toLocaleString()} in the red.`); }
+  renderShop(G);
+  const res = $('rm-result');
+  res.innerHTML = `<div class="rm-upheld"><b>Order placed.</b> ${esc(it.name)} will be dropped at the ambulance bay by courier drone shortly.</div>`;
+}
+
+// Called from the game loop: deliver any orders whose time has come.
+export function deliverOrders(G) {
+  for (const o of G.orders.slice()) {
+    if (G.time < o.at) continue;
+    G.orders.splice(G.orders.indexOf(o), 1);
+    G.onDelivery(o);
+  }
 }
 
 let refN = 40211;

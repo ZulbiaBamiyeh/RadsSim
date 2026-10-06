@@ -95,6 +95,17 @@ export function buildWorld(scene) {
   // MRI zone line
   g.fillStyle = '#e8c547';
   for (let x = 30; x < 43; x++) g.fillRect(x * PX, 7.8 * PX, PX / 2, 6);
+  // Car park bay lines + driveway hatching
+  g.strokeStyle = 'rgba(230,230,210,0.5)';
+  g.lineWidth = 3;
+  for (const rowZ of [31, 37]) {
+    for (let x = 2; x <= 60; x += 3) {
+      g.strokeRect(x * PX, rowZ * PX, 3 * PX, 4.6 * PX);
+    }
+  }
+  g.fillStyle = 'rgba(230,220,120,0.5)';
+  g.font = `bold ${Math.round(PX * 1.4)}px Arial`;
+  g.save(); g.translate(31 * PX, 36 * PX); g.textAlign = 'center'; g.fillText('P', 0, 0); g.restore();
 
   const floorTex = new THREE.CanvasTexture(fc);
   floorTex.colorSpace = THREE.SRGBColorSpace;
@@ -220,6 +231,18 @@ export function buildWorld(scene) {
   const sodium = new THREE.PointLight(0xffa04a, 18, 16, 1.6);
   sodium.position.set(20, 4.5, 27.5);
   scene.add(sodium);
+  // Car park floodlights on tall poles, so the lot isn't pitch black.
+  for (const [lx, lz] of [[10, 33], [31, 33], [52, 33], [10, 40], [31, 40], [52, 40]]) {
+    box(scene, 0.18, 5, 0.18, '#2a2d31', lx, 2.5, lz);
+    const lamp = box(scene, 0.7, 0.25, 0.7, '#1a1c1f', lx, 5.0, lz);
+    const glow = new THREE.Mesh(new THREE.PlaneGeometry(0.62, 0.62), new THREE.MeshBasicMaterial({ color: '#ffe6a8' }));
+    glow.rotation.x = Math.PI / 2;
+    glow.position.set(0, -0.13, 0);
+    lamp.add(glow);
+    const pl = new THREE.PointLight(0xffe0a0, 42, 30, 1.2);
+    pl.position.set(lx, 4.7, lz);
+    scene.add(pl);
+  }
   const monitorGlow = new THREE.PointLight(0x7fb2ff, 3, 5, 1.5);
   monitorGlow.position.set(3.2, 1.3, 2.2);
   scene.add(monitorGlow);

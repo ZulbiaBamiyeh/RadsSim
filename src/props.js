@@ -52,6 +52,31 @@ export const PROP_TYPES = {
     add(g, B(0.25, 0.06, 0.18), '#c9ccd1', 0, 0, 0, 0, 0, 0, new THREE.MeshLambertMaterial({ color: '#d4d8de', emissive: '#222' }));
     add(g, B(0.22, 0.01, 0.15), '#b8742a', 0, 0.03);
   } },
+  golfclub: { name: 'Golf club (7-iron)', r: 0.08, h: 1.0, mass: 1, metal: 0.4, use: 'golf', build(g) {
+    add(g, C(0.015, 0.95), '#c9ced4', 0, 0.02);
+    add(g, B(0.03, 0.09, 0.14), '#e8edf2', 0.02, -0.46, 0.03, 0, 0, 0.3);
+    add(g, C(0.022, 0.18), '#20242a', 0, 0.42);
+  } },
+  golfball: { name: 'Golf ball', r: 0.045, h: 0.09, mass: 0.05, light: true, build(g) {
+    add(g, new THREE.SphereGeometry(0.045, 10, 8), '#fbfbf5');
+  } },
+  bat: { name: 'Cricket bat', r: 0.1, h: 0.95, mass: 1.4, use: 'bat', build(g) {
+    add(g, B(0.11, 0.55, 0.035), '#caa36a', 0, -0.18);
+    add(g, C(0.022, 0.4), '#3a2a1a', 0, 0.28);
+  } },
+  cone: { name: 'Traffic cone', r: 0.18, h: 0.5, mass: 1.2, build(g) {
+    add(g, new THREE.ConeGeometry(0.16, 0.45, 16), '#e8621f', 0, 0.02);
+    add(g, B(0.4, 0.03, 0.4), '#e8621f', 0, -0.23);
+    add(g, new THREE.CylinderGeometry(0.11, 0.14, 0.12, 16), '#f4f4f4', 0, 0.02);
+  } },
+  airhorn: { name: 'Air horn', r: 0.08, h: 0.16, mass: 0.3, use: 'honk', build(g) {
+    add(g, C(0.045, 0.11), '#d4111f', 0, -0.02);
+    add(g, new THREE.ConeGeometry(0.07, 0.09, 14), '#e8e8e8', 0, 0.08);
+  } },
+  kebab: { name: 'Family-size kebab', r: 0.1, h: 0.14, mass: 0.3, use: 'eat', build(g) {
+    add(g, C(0.06, 0.13, 10), '#e8c98f');
+    add(g, C(0.065, 0.04, 10), '#6fae4a', 0, 0.06);
+  } },
   lighter: { name: 'Lighter (confiscated)', r: 0.06, h: 0.09, mass: 0.05, use: 'ignite', build(g) {
     add(g, B(0.03, 0.08, 0.015), '#e3342f');
     add(g, B(0.03, 0.015, 0.015), '#aaa', 0, 0.045);

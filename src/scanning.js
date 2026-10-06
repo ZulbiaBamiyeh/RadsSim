@@ -120,9 +120,10 @@ export class Scanning {
         const inAmt = k < 0.25 ? k / 0.25 : k > 0.75 ? (1 - k) / 0.25 : 1;
         mesh.position.set(T.x0 + (T.x1 - T.x0) * inAmt, T.y - 0.22, T.z);
         exposing = k > 0.3 && k < 0.7;
-        job.snd = (job.snd || 0) - dt;
-        if (exposing && job.snd <= 0) {
-          if (id === 'ct') { sfx.whoosh(); job.snd = 1.1; } else { sfx.thud(0.35); job.snd = 0.28; }
+        // CT runs quietly; MRI keeps its clatter.
+        if (id === 'mri') {
+          job.snd = (job.snd || 0) - dt;
+          if (exposing && job.snd <= 0) { sfx.thud(0.35); job.snd = 0.28; }
         }
       }
       this.setLights(id, exposing || (id === 'mri' && k > 0.25 && k < 0.75));

@@ -129,12 +129,24 @@ At the PACS workstation:
   - **Flying metal mid-scan** ruins the scan and it restarts.
 - **New studies to report:** chest X-rays (pneumothorax, consolidation, free gas under the diaphragm, pleural effusion) and MRI brains, stroke protocol, on T2-style contrast (acute infarct).
 
+## Car park, cars, golf and the RiskBay shop
+
+- **Car park** south past the ambulance bay, floodlit, with bay lines and a driveway ramp up to the bay.
+- **Cars** (8 of them, with owners like Dr Harrow's SUV and the DMS's Range Rover):
+  - **Smash a window** with a kick (F), a thrown object, a golf ball or the cricket bat — the alarm wails.
+  - **Break in and drive** with **E**: WASD to steer, Shift to floor it, E to get out. You can drive up the ramp, through the ambulance doors and straight into the ED, running people over (cartoonishly) and shoving furniture.
+  - Ramming other parked cars sets their alarms off too.
+- **Golf** (order the set from RiskBay): hold the 7-iron and **RMB** to tee up and whack a ball in your look direction. Do it off the roof.
+- **RiskBay shop** — a second tab on the RiskMann computer. Order a golf set, cricket bat, air horn, traffic cones, a pallet of O2 cylinders, a kebab, a reconditioned extinguisher (jetpack), a spare defib, a pre-filled mop bucket, or "definitely legitimate" car keys. It's charged to the departmental cost centre (not your money); overspend gets a RiskMann filed about you. Orders are dropped by courier drone at the ambulance bay.
+- **CT noise** during scanning has been removed; only the MRI still clatters.
+
 ## Code map
 
 | File | What it does |
 | --- | --- |
 | `src/main.js` | Game loop, systems (worklist escalation, fire effects, sprinklers, alarms), interactions, HUD, morning screen |
 | `src/map.js` | ASCII-ish floor plan grid, zones, collision, BFS pathfinding |
+| `src/cars.js` | Parked cars: smashing, hotwiring, driving, running people over |
 | `src/world.js` | Builds the 3D ED: floor texture (scorchable), walls, furniture, signage, screens |
 | `src/ctgen.js` | Procedural CT volumes + windowing |
 | `src/cases.js` | Request/case generator (fictional patients, clinical histories, findings) |

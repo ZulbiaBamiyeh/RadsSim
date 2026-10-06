@@ -358,3 +358,15 @@ body.touch #wanted { top: 62px; }
 .rm-empty { color: #6b7f86; font-style: italic; }
 td.st-upheld { color: #1b8a3c; font-weight: 700; }
 td.st-vexatious { color: #b01818; font-weight: 700; }
+.rm-shop-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; font-weight: 700; font-size: 16px; margin-bottom: 8px; }
+.rm-shop-head small { font-weight: 400; color: #4b6069; }
+#rm-budget { margin-left: auto; font-family: 'IBM Plex Mono', monospace; background: #e3eef0; padding: 3px 8px; border: 1px solid #9fb2b8; }
+#rm-budget.rm-over { background: #f8e3e3; color: #b01818; }
+.rm-shop { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 10px; }
+.rm-item { border: 1px solid #c3d0d4; background: #fff; padding: 10px; display: flex; flex-direction: column; gap: 6px; }
+.rm-item-name { font-weight: 700; }
+.rm-item-blurb { font-size: 12px; color: #4b6069; flex: 1; }
+.rm-item-buy { display: flex; align-items: center; justify-content: space-between; }
+.rm-price { font-family: 'IBM Plex Mono', monospace; font-weight: 700; }
+.rm-item-buy button { background: #0f6e6e; color: #fff; border: 0; padding: 6px 12px; font-weight: 700; }
+.rm-item-buy button:hover { background: #128181; }
