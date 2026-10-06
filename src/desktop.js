@@ -6,51 +6,62 @@ import { openStore } from './store.js';
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
 
-// Text documents. `[[...]]` marks leftover AI chatter, rendered highlighted so it's obvious nobody proofread.
+// Text documents. The AI-assisted ones still have the chatbot's reply pasted at the bottom, because nobody proofread.
 const FILES = {
   casereport: {
-    name: 'Case_report_DRAFT_v3.docx', icon: 'doc', kind: 'doc',
-    body: `[[Sure! Here's a draft case report based on your notes. Feel free to adjust it to fit the journal's requirements:]]
+    name: 'Case_report_FINAL_for_submission.docx', icon: 'doc', kind: 'doc',
+    body: `# Retrocaecal appendicitis mimicking right renal colic: a case report
 
-# [INSERT CATCHY TITLE — something with a pun about "appendix"?]
-
-**An Unusual Presentation of a Common Condition: A Case Report and Review of the Literature**
-
-Authors: Dr ____, Dr ____ (ask if the consultant wants to be first author again), [[As an AI language model, I cannot be listed as an author.]]
+Authors: Dr ____ (Radiology Registrar), Dr ____ (Consultant Radiologist — check if he wants to be first author again)
 
 ## Abstract
-We present the case of a 34-year-old man who presented to the Emergency Department with right iliac fossa pain. [[Would you like me to make the abstract more concise?]] Computed tomography demonstrated a fascinating and rare finding that delves into the rich tapestry of abdominal pathology.
+We report the case of a 34-year-old man who presented to the Emergency Department with right flank pain initially attributed to renal colic. A non-contrast CT KUB showed no urolithiasis but did demonstrate an inflamed retrocaecal appendix with an appendicolith. He underwent laparoscopic appendicectomy and made an uneventful recovery. This case is a reminder that the appendix does not always sit where the clinical examination expects it to.
 
-## Introduction
-Appendicitis is the most common surgical emergency worldwide, affecting approximately 7% of the population [1]. In today's fast-paced clinical landscape, it is more important than ever to navigate the complex realm of diagnostic imaging. [[make this sound less like a LinkedIn post]]
+## Background
+Acute appendicitis is the most common general surgical emergency, with a lifetime risk of around 7–8% [1]. The retrocaecal position is the most frequent anatomical variant, yet retrocaecal appendicitis can present atypically, with flank or back pain, few peritoneal signs and occasionally microscopic haematuria from ureteric irritation [2]. Unsurprisingly, it is often mistaken for renal colic.
 
 ## Case presentation
-A 34-year-old man presented with 2 days of periumbilical pain migrating to the RIF. He was febrile (38.4°C). WCC 15.2. CRP 88. Alvarado score 8 — the surgical registrar described this as "clinically appendicitis, scan not needed", which, notably, did not stop them requesting one at 03:12.
+A previously well 34-year-old man presented at 02:40 with 18 hours of right flank pain radiating to the groin, with nausea and one episode of vomiting. He was afebrile (37.6°C) with mild right loin tenderness and no rebound or guarding. Urinalysis showed a trace of blood. WCC was 13.1 and CRP 42.
 
-CT abdomen/pelvis with contrast demonstrated a dilated (11 mm) fluid-filled appendix with periappendiceal fat stranding and a 6 mm appendicolith. [[I'm sorry, but I can't view images. Could you describe the CT findings?]] The appendix was located in a retrocaecal position, which is [TODO: find out if this is actually unusual, I think it's like 65% of people??]
+He was treated as renal colic and a CT KUB was requested ("?stone ?obstruction"). There was no urinary tract calculus and no hydronephrosis. In the right paracolic region there was a dilated 10 mm tubular structure arising from the caecum and extending superiorly behind it, with surrounding fat stranding and a 5 mm appendicolith at its base. There was no free gas or collection.
+
+The surgical team were informed at 03:55. He underwent laparoscopic appendicectomy the same morning, which confirmed a gangrenous retrocaecal appendix. Histology showed acute suppurative appendicitis. He was discharged on day two.
 
 ## Discussion
-Retrocaecal appendicitis is a rare and fascinating entity. [[Note: I couldn't verify that retrocaecal appendicitis is rare; it is actually the most common position. You may want to revise this claim.]] This case highlights the importance of a multidisciplinary approach and underscores the pivotal role that radiology plays in the tapestry of modern medicine.
+The retrocaecal appendix lies behind the caecum and may be in contact with the right ureter and the posterior abdominal wall, which explains the flank pain and the haematuria in this patient. Because the inflamed appendix is shielded by the caecum, the classic signs of anterior peritoneal irritation are often absent [3].
 
-Key learning points:
-- Appendicitis exists.
-- CT can show it.
-- [[Here are three more learning points you could add:]]
--
+Non-contrast CT is less sensitive for appendicitis than contrast-enhanced CT, but an appendicolith and periappendiceal stranding are usually visible. Radiologists reviewing a "negative" CT KUB should actively look for alternative diagnoses, including appendicitis, diverticulitis and adnexal pathology [4].
 
-## Conclusion
-In conclusion, this case serves as a testament to [[Regenerate response]]
+## Learning points
+- Retrocaecal appendicitis can mimic right renal colic, including haematuria.
+- A negative CT KUB should prompt a search for alternative causes of flank pain.
+- An appendicolith may be the most conspicuous finding on non-contrast CT.
 
 ## References
-1. Smith J, et al. Appendicitis: a comprehensive review. J Abdom Imaging Excell. 2019;14(3):221–9. [[Note: I couldn't find this reference — please verify it exists.]]
-2. Jones A, Smith J. The appendix and you. Lancet Radiol Surg Today. 2021;8:1–1.
-3. [reference that supports what I said in paragraph 2 — FIND ONE]
+1. [ref — lifetime risk of appendicitis, find a proper one]
+2. [ref — retrocaecal presentation]
+3. [ref]
+4. [ref — alternative diagnoses on CT KUB, the RANZCR one?]
 
-[[Is there anything else you'd like me to help with? I can also format this for a specific journal, such as the BMJ Case Reports, or translate it into French.]]
+## Patient consent
+Obtained [CHECK — did anyone actually get this??]
 
-prompt: make this under 1500 words and sound like a real doctor wrote it. not too AI. remove the word tapestry
+I've revised your case report to sound more natural and less like it was generated by AI. Here's a summary of the changes I made:
 
-[[Certainly! Here's a revised version with the word "tapestry" removed:]]`,
+- **Varied sentence length and structure** so it reads more like a clinician wrote it
+- **Removed overused phrases** such as "delve", "tapestry" and "in today's fast-paced clinical landscape"
+- **Added specific clinical details** (times, observations, blood results) to make the case feel more authentic
+- **Trimmed the word count** to approximately 780 words, well within the BMJ Case Reports limit
+- **Replaced the references** with placeholders, as I wasn't able to verify that the original citations exist. Please check these against PubMed before submission.
+
+Please note that most journals now require authors to disclose the use of AI tools in manuscript preparation, so you may wish to add a statement to the acknowledgements.
+
+Would you like me to:
+1. Suggest a few catchier titles?
+2. Draft a cover letter to the editor?
+3. Write the patient consent section?
+
+Let me know if there's anything else I can help with!`,
   },
   rota: {
     name: 'Rota_FINAL_v7_ACTUALFINAL(2).xlsx', icon: 'xls', kind: 'sheet',
@@ -80,20 +91,24 @@ DO NOT LEAVE THIS FILE ON THE DESKTOP — IT`,
     name: 'resignation_letter_DO_NOT_SEND.docx', icon: 'doc', kind: 'doc',
     body: `Dear Director of Medical Services,
 
-Please accept this letter as formal notice of my resignation from the position of [[Sure! Here's a professional and polite resignation letter:]] on-call radiologist, effective immediately / at 08:00 / when I find my car.
+Please accept this letter as formal notice of my resignation from the position of on-call radiologist, effective immediately / at 08:00 / when I find my car.
 
 After 14 years, 31,000 CT brains and one memorable night involving a microwave, I have decided to pursue other opportunities, such as sleeping.
 
 I would like to thank the surgical registrars for teaching me that every scan is urgent, and the ED for teaching me that "?anything" is a clinical question.
 
-[[You might want to keep the tone more positive to maintain professional relationships.]]
-
-no
-
 Yours sincerely,
 (the radiologist)
 
-P.S. The fish in the tea room was me.`,
+P.S. The fish in the tea room was me.
+
+I've drafted a resignation letter based on your notes. A few suggestions before you send it:
+
+- You may want to keep the tone more positive, as it's generally wise to maintain good professional relationships with a former employer.
+- "Effective immediately / at 08:00 / when I find my car" should be a single date. Most contracts require a notice period of four to twelve weeks.
+- Consider removing the postscript.
+
+Would you like me to write a more formal version?`,
   },
   teaching: {
     name: 'Registrar_teaching_FINAL.pptx', icon: 'ppt', kind: 'doc',
@@ -114,7 +129,7 @@ P.S. The fish in the tea room was me.`,
 
 # Slide 5: Questions?
 
-# Slide 6: [[Here's a fun closing slide idea: a picture of a cute cat holding a stethoscope!]]`,
+# Slide 6: (picture of a cat holding a stethoscope)`,
   },
   cat: { name: 'IMG_4471_cat_in_scanner.jpg', icon: 'img', kind: 'cat' },
   readme: {
@@ -182,12 +197,11 @@ function showFile(f) {
   body.scrollTop = 0;
 }
 
-// Tiny markdown-ish renderer: headings, bold, bullets, and highlighted [[AI leftovers]].
+// Tiny markdown-ish renderer: headings, bold, bullets, numbered items, and highlighted author TODOs.
 function docHtml(src) {
   const inline = (s) => esc(s)
-    .replace(/\[\[(.+?)\]\]/g, '<mark class="fv-ai">$1</mark>')
     .replace(/\*\*(.+?)\*\*/g, '<b>$1</b>')
-    .replace(/(\[(?:INSERT|TODO|reference)[^\]]*\])/g, '<span class="fv-todo">$1</span>');
+    .replace(/(\[(?:INSERT|TODO|ref|CHECK)[^\]]*\])/g, '<span class="fv-todo">$1</span>');
   const out = [];
   let list = false;
   for (const line of src.split('\n')) {

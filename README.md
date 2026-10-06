@@ -140,7 +140,7 @@ At the PACS workstation:
 - **The side computer** in the reading room is now a full (tired) hospital desktop with icons:
   - **RiskMann**: incident reports only.
   - **Bidly**: a parody online marketplace with sellers, ratings and Buy It Now. It sells a golf set, cricket bat, air horn, traffic cones, O2 cylinders, a kebab, an extinguisher (jetpack), a defib, a mop bucket and some very suspicious car keys. You pay with a corporate card someone left in the drawer ($2,500 limit; it gets declined after that). Orders arrive by courier drone at the ambulance bay.
-  - **Files**: a half-written case report co-written with an AI chatbot (the prompts and "As an AI language model…" are still in it, highlighted), the rota (you're on every night), `passwords.txt`, a resignation letter marked DO NOT SEND, registrar teaching slides, a cat photo, a note from IT and a Recycle Bin.
+  - **Files**: a "final" case report that an AI tidied up, with the chatbot's reply ("I've revised your case report to sound more natural… Would you like me to…") still pasted at the bottom, the rota (you're on every night), `passwords.txt`, a resignation letter marked DO NOT SEND, registrar teaching slides, a cat photo, a note from IT and a Recycle Bin.
 - **CT noise** during scanning has been removed; only the MRI still clatters.
 
 ## Code map

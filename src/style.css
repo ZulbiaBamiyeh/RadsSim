@@ -389,8 +389,7 @@ td.st-vexatious { color: #b01818; font-weight: 700; }
 .fv-doc { font-family: Georgia, 'Times New Roman', serif; background: #fff; }
 .fv-doc h1 { font-size: 20px; margin: 10px 0 8px; } .fv-doc h2 { font-size: 16px; margin: 14px 0 4px; }
 .fv-doc p { margin: 0 0 8px; } .fv-doc ul { margin: 0 0 8px 20px; }
-.fv-ai { background: #fff3a8; padding: 0 2px; font-family: Arial, sans-serif; font-size: 13px; }
-.fv-todo { background: #ffd6d6; color: #8a1010; font-family: Arial, sans-serif; font-size: 13px; }
+.fv-todo { background: #fff200; }
 .fv-pre pre { margin: 0; font-family: 'IBM Plex Mono', monospace; font-size: 13px; white-space: pre-wrap; }
 .fv-sheet table { border-collapse: collapse; font-size: 12px; font-family: Arial, sans-serif; }
 .fv-sheet th, .fv-sheet td { border: 1px solid #c8c8c8; padding: 4px 8px; text-align: center; }
