@@ -9,57 +9,68 @@ const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&l
 // Text documents. The AI-assisted ones still have the chatbot's reply pasted at the bottom, because nobody proofread.
 const FILES = {
   casereport: {
-    name: 'Case_report_FINAL_for_submission.docx', icon: 'doc', kind: 'doc',
-    body: `# Retrocaecal appendicitis mimicking right renal colic: a case report
+    name: 'appendix case report DRAFT v4 - Copy.docx', icon: 'doc', kind: 'doc',
+    body: `# Retrocaecal appendicitis mimicking renal colic [title?? something better]
 
-Authors: Dr ____ (Radiology Registrar), Dr ____ (Consultant Radiologist — check if he wants to be first author again)
+Authors: me, Dr ____ (ask if he wants to be first author AGAIN), ?the surgical reg (did nothing)
 
 ## Abstract
-We report the case of a 34-year-old man who presented to the Emergency Department with right flank pain initially attributed to renal colic. A non-contrast CT KUB showed no urolithiasis but did demonstrate an inflamed retrocaecal appendix with an appendicolith. He underwent laparoscopic appendicectomy and made an uneventful recovery. This case is a reminder that the appendix does not always sit where the clinical examination expects it to.
+[write this last]
 
 ## Background
-Acute appendicitis is the most common general surgical emergency, with a lifetime risk of around 7–8% [1]. The retrocaecal position is the most frequent anatomical variant, yet retrocaecal appendicitis can present atypically, with flank or back pain, few peritoneal signs and occasionally microscopic haematuria from ureteric irritation [2]. Unsurprisingly, it is often mistaken for renal colic.
+Appendicitis is the most common general surgical emergency, lifetime risk approx XX% [ref]. Retrocaecal is the commonest position (65%?? check) but can present atypically — flank pain, few peritoneal signs, sometimes microscopic haematuria [ref]. Often mistaken for renal colic.
+
+[RH comment: too long, cut to 2 lines]
 
 ## Case presentation
-A previously well 34-year-old man presented at 02:40 with 18 hours of right flank pain radiating to the groin, with nausea and one episode of vomiting. He was afebrile (37.6°C) with mild right loin tenderness and no rebound or guarding. Urinalysis showed a trace of blood. WCC was 13.1 and CRP 42.
+34M, previously well, presented at 02:40 with ~18 h of R flank pain radiating to the groin. Nausea, vomited once. T 37.6. Mild R loin tenderness, no guarding. Urine dip: trace blood. WCC 13.1, CRP 42 (or 48? check the second set).
 
-He was treated as renal colic and a CT KUB was requested ("?stone ?obstruction"). There was no urinary tract calculus and no hydronephrosis. In the right paracolic region there was a dilated 10 mm tubular structure arising from the caecum and extending superiorly behind it, with surrounding fat stranding and a 5 mm appendicolith at its base. There was no free gas or collection.
+Treated as renal colic → CT KUB "?stone ?obstruction".
 
-The surgical team were informed at 03:55. He underwent laparoscopic appendicectomy the same morning, which confirmed a gangrenous retrocaecal appendix. Histology showed acute suppurative appendicitis. He was discharged on day two.
+CT KUB: no calculus, no hydronephrosis. Dilated XX mm tubular structure arising from the caecum and extending superiorly behind it, with surrounding fat stranding and a XX mm appendicolith at the base. No free gas or collection.
+
+[Fig 1 — axial CT, arrow on appendicolith. DE-IDENTIFY FIRST]
+[Fig 2 — coronal?? if it looks ok]
+
+Surgeons informed 03:55 (they said "clinically renal colic" — leave this out?). Lap appendicectomy the same morning: gangrenous retrocaecal appendix. Histo: acute suppurative appendicitis. Home day 2.
 
 ## Discussion
-The retrocaecal appendix lies behind the caecum and may be in contact with the right ureter and the posterior abdominal wall, which explains the flank pain and the haematuria in this patient. Because the inflamed appendix is shielded by the caecum, the classic signs of anterior peritoneal irritation are often absent [3].
+The retrocaecal appendix lies behind the caecum and can sit against the right ureter, which explains the flank pain and the haematuria. Because the caecum shields it, the anterior peritoneal signs are often absent [ref].
 
-Non-contrast CT is less sensitive for appendicitis than contrast-enhanced CT, but an appendicolith and periappendiceal stranding are usually visible. Radiologists reviewing a "negative" CT KUB should actively look for alternative diagnoses, including appendicitis, diverticulitis and adnexal pathology [4].
+Non-contrast CT is less sensitive than contrast-enhanced CT for appendicitis, however an appendicolith and fat stranding are usually
+
+OLD VERSION — delete?: Non contrast CT is less sensitive but the appendicolith is often the most obvious finding and radiologists should always look for
+
+Something about the importance of a search pattern on "negative" CT KUBs — diverticulitis, adnexal, AAA, appendix
 
 ## Learning points
-- Retrocaecal appendicitis can mimic right renal colic, including haematuria.
-- A negative CT KUB should prompt a search for alternative causes of flank pain.
-- An appendicolith may be the most conspicuous finding on non-contrast CT.
+- Retrocaecal appendicitis can mimic R renal colic (incl. haematuria)
+- Negative CT KUB → look for another cause
+- 3rd point???
 
 ## References
-1. [ref — lifetime risk of appendicitis, find a proper one]
+1. [ref]
 2. [ref — retrocaecal presentation]
-3. [ref]
-4. [ref — alternative diagnoses on CT KUB, the RANZCR one?]
+3. [the RANZCR one? or was it RCR]
 
 ## Patient consent
-Obtained [CHECK — did anyone actually get this??]
+[CHECK — did anyone actually get this??]
 
-I've revised your case report to sound more natural and less like it was generated by AI. Here's a summary of the changes I made:
+Word count: ~650 (limit 1500, so fine)
+
+I've tidied up the sections you pasted and made them sound more natural and less like they were generated by AI. Here's a summary of the changes I made:
 
 - **Varied sentence length and structure** so it reads more like a clinician wrote it
 - **Removed overused phrases** such as "delve", "tapestry" and "in today's fast-paced clinical landscape"
-- **Added specific clinical details** (times, observations, blood results) to make the case feel more authentic
-- **Trimmed the word count** to approximately 780 words, well within the BMJ Case Reports limit
-- **Replaced the references** with placeholders, as I wasn't able to verify that the original citations exist. Please check these against PubMed before submission.
+- **Kept your notes and placeholders** (XX, [ref]) so you can fill them in from the patient's records
+- **Left the references as placeholders**, as I wasn't able to verify that the original citations exist. Please check these against PubMed before submission.
 
 Please note that most journals now require authors to disclose the use of AI tools in manuscript preparation, so you may wish to add a statement to the acknowledgements.
 
 Would you like me to:
-1. Suggest a few catchier titles?
-2. Draft a cover letter to the editor?
-3. Write the patient consent section?
+1. Write the abstract?
+2. Suggest a few catchier titles?
+3. Draft a third learning point?
 
 Let me know if there's anything else I can help with!`,
   },
@@ -198,7 +209,7 @@ function showFile(f) {
 function docHtml(src) {
   const inline = (s) => esc(s)
     .replace(/\*\*(.+?)\*\*/g, '<b>$1</b>')
-    .replace(/(\[(?:INSERT|TODO|ref|CHECK)[^\]]*\])/g, '<span class="fv-todo">$1</span>');
+    .replace(/(\[[^\]]+\]|\bXX\b|\?\?\?)/g, '<span class="fv-todo">$1</span>');
   const out = [];
   let list = false;
   for (const line of src.split('\n')) {

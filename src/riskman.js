@@ -14,8 +14,6 @@ const CATEGORIES = [
     valid: (n, G) => G.cases.some((c) => c.requester === n.name && c.path === 'normal'), why: () => 'a low-yield request on file' },
   { id: 'rude', label: 'Rudeness / unprofessional behaviour', text: 'Was rude to me. I may have shoved them first; that is not relevant.',
     valid: (n) => (n.anger || 0) >= 2, why: (n) => `witnesses confirm they were "quite cross" (anger ${n.anger})` },
-  { id: 'fish', label: 'Microwaved fish in the staff room', text: 'The tea room smells of fish. I know it was them.',
-    valid: () => Math.random() < 0.35, why: () => 'fish odour confirmed by the cleaner' },
   { id: 'security', label: 'Excessive force', text: 'Escorted me back to my room with unnecessary firmness.',
     valid: (n, G) => n.role === 'security' && G.stats.caught > 0, why: (n, G) => `${G.stats.caught} escort(s) on record` },
   { id: 'breathing', label: 'Breathing too loudly', text: 'Breathing audibly near my workstation.',
