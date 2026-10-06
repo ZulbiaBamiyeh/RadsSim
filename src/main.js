@@ -15,7 +15,9 @@ import { isTouchDevice, setupTouch } from './touch.js';
 import { startArgument } from './argue.js';
 import { Scanning } from './scanning.js';
 import { Cars } from './cars.js';
-import { openRiskman, reportAboutYou, RISKMAN_OUTCOMES, deliverOrders } from './riskman.js';
+import { reportAboutYou, RISKMAN_OUTCOMES } from './riskman.js';
+import { deliverOrders } from './store.js';
+import { openDesktop } from './desktop.js';
 
 const $ = (id) => document.getElementById(id);
 const pick = (a) => a[Math.floor(Math.random() * a.length)];
@@ -798,7 +800,7 @@ function useStation(id) {
     case 'riskman':
       G.mode = 'form';
       P.unlock();
-      openRiskman(G, { onClose: () => resumePlay() });
+      openDesktop(G, { onClose: () => resumePlay() });
       break;
     case 'mirror':
       toast(G.sootT > 0 ? 'You are covered in soot. Your eyebrows are gone.' : G.list() > 20 ? 'You look like someone with ' + G.list() + ' unreported scans.' : pick(['You look like you\'ve been awake for 19 hours. Because you have.', 'Lanyard: crooked. Soul: tired.', 'You practise saying "no acute abnormality" in the mirror.']));
@@ -1552,7 +1554,7 @@ function endShift() {
   G.player.unlock();
   setAlarm(false);
   G.world.alarmLight.intensity = 0;
-  for (const id of ['alarm-vignette', 'fire-overlay', 'soot', 'help', 'paused', 'hide-overlay', 'lift-modal', 'argue-modal', 'riskman']) $(id).hidden = true;
+  for (const id of ['alarm-vignette', 'fire-overlay', 'soot', 'help', 'paused', 'hide-overlay', 'lift-modal', 'argue-modal', 'riskman', 'desktop', 'store', 'fileview']) $(id).hidden = true;
   const s = G.stats;
   const unrep = G.list();
   const argued = G.cases.filter((c) => c.cancelled && c.cancelled !== 'clinical' && c.path !== 'normal');
@@ -1565,7 +1567,7 @@ function endShift() {
   else if (s.carsJacked) headlines.push('STAFF CAR PARK "NO LONGER SAFE", RADIOLOGIST SUSPECTED');
   if (s.carsSmashed >= 3) headlines.push(`${s.carsSmashed} CARS VANDALISED IN ONE NIGHT; ALARMS "WENT ON FOR HOURS"`);
   if (s.golfBalls >= 20) headlines.push('GOLF BALLS RAINING ON CAR PARK; "IS SOMEONE ON THE ROOF?"');
-  if (s.orderSpend >= 2000) headlines.push(`RADIOLOGY COST CENTRE $${s.orderSpend.toLocaleString()} OVER ON "EQUIPMENT"`);
+  if (s.orderSpend >= 2000) headlines.push(`RADIOLOGIST SPENDS $${s.orderSpend.toLocaleString()} ON A STRANGER'S CARD`);
   if (s.pinned) headlines.push(`${s.pinned} STAFF PINNED TO MRI MAGNET; PHYSICIST "NOT SURPRISED"`);
   if (G.pagerGone) headlines.push('RADIOLOGIST\'S PAGER FOUND STUCK TO MRI; "FIRST QUIET NIGHT IN YEARS"');
   if (s.radiationDoses >= 3) headlines.push(`RADIOLOGIST STANDS IN SCAN ROOM ${s.radiationDoses} TIMES; RADIOGRAPHERS UNION CONSULTED`);
@@ -1603,7 +1605,7 @@ function endShift() {
     ['Patients scanned tonight', s.scanned], ['People pinned to the MRI', s.pinned], ['Pages missed (pager in magnet)', s.pagesMissed], ['Times you stood in the room during a scan', s.radiationDoses],
     ['Straight-to-theatre calls', s.clinicalCalls], ['Searches evaded', s.searchesEvaded], ['Knocks on your door', s.knocks], ['Lift rides', s.liftRides], ['Things thrown off the roof', s.roofThrows],
     ['Cars broken into', s.carsJacked], ['Car windows smashed', s.carsSmashed], ['Car crashes', s.carCrashes], ['People run over (cartoonishly)', s.ranOver],
-    ['Golf balls hit', s.golfBalls], ['Air horn blasts', s.honks], ['RiskBay orders', s.ordersPlaced], ['Spent on RiskBay', `$${s.orderSpend.toLocaleString()}`],
+    ['Golf balls hit', s.golfBalls], ['Air horn blasts', s.honks], ['Bidly orders', s.ordersPlaced], ['Spent on Bidly', `$${s.orderSpend.toLocaleString()}`],
   ];
   $('m-stats').innerHTML = rows.map(([k, v]) => `<div><span>${k}</span><b>${v}</b></div>`).join('');
   const mm = s.wrong.slice(0, 8).map((c) => `<li><b>${c.patient}</b>, ${c.study}: you said "${FINDINGS[c.modality][c.finding]}". It was <b>${FINDINGS[c.modality][c.path]}</b>.</li>`);

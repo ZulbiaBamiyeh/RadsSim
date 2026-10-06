@@ -73,7 +73,7 @@ export class Player {
     if (this.inCar) {
       // Position and heading are driven by Cars.update; place the camera at the driver's eye.
       this.y = 0;
-      this.camera.position.set(this.pos.x, 1.4, this.pos.z);
+      this.camera.position.set(this.pos.x, this.inCar.seatY || 1.4, this.pos.z);
       this.camera.rotation.set(this.pitch, this.yaw, 0, 'YXZ');
       return;
     }

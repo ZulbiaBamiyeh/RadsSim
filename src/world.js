@@ -268,15 +268,28 @@ export function buildWorld(scene) {
   box(scene, 0.1, 0.06, 0.22, '#111', 4.82, 0.87, 1.5);
   // Keyboard, coffee rings
   box(scene, 0.5, 0.03, 0.18, '#1d1d1d', 3.2, 0.77, 1.75);
-  // Side computer: RiskMann
+  // Side computer: a tired desktop PC (RiskMann, Bidly, random files)
   furniture(scene, 6.4, 1.05, 8.9, 1.8, 0.75, '#6d5a47');
   box(scene, 0.06, 0.3, 0.06, '#222', 7.6, 0.9, 1.35);
   box(scene, 0.72, 0.46, 0.05, '#15171a', 7.6, 1.25, 1.33);
-  const rmC = textCanvas('RiskMann\nIncident Mgmt', 256, 160, { bg: '#0f6e6e', fg: '#fff', font: 'bold 34px Arial' });
+  box(scene, 0.45, 0.03, 0.15, '#1d1d1d', 7.6, 0.77, 1.75);
+  const rmC = document.createElement('canvas');
+  rmC.width = 256; rmC.height = 160;
+  {
+    const g = rmC.getContext('2d');
+    const grd = g.createRadialGradient(180, 50, 10, 128, 80, 200);
+    grd.addColorStop(0, '#2f6f9a'); grd.addColorStop(1, '#0c2036');
+    g.fillStyle = grd; g.fillRect(0, 0, 256, 160);
+    const cols = ['#0f6e6e', '#ffffff', '#2b5797', '#1e7145', '#c4472b', '#2b5797', '#eceff1', '#7b4fa0'];
+    cols.forEach((c, i) => { g.fillStyle = c; g.fillRect(10 + Math.floor(i / 4) * 34, 8 + (i % 4) * 34, 20, 20); g.fillStyle = '#cfd8e0'; g.fillRect(8 + Math.floor(i / 4) * 34, 31 + (i % 4) * 34, 24, 3); });
+    g.fillStyle = 'rgba(10,14,20,.92)'; g.fillRect(0, 146, 256, 14);
+    g.fillStyle = '#1f6fb2'; g.fillRect(0, 146, 28, 14);
+    g.fillStyle = 'rgba(255,255,255,.3)'; g.font = 'bold 18px Arial'; g.textAlign = 'right'; g.fillText('RadsSim General', 248, 134);
+  }
   const rmScr = new THREE.Mesh(new THREE.PlaneGeometry(0.66, 0.4), new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(rmC) }));
   rmScr.position.set(7.6, 1.25, 1.36);
   scene.add(rmScr);
-  out.interactables.push({ id: 'riskman', x: 7.6, z: 2.3, r: 1.2, label: 'Open RiskMann (file an incident report)' });
+  out.interactables.push({ id: 'riskman', x: 7.6, z: 2.3, r: 1.2, label: 'Use the computer (RiskMann, Bidly, files)' });
   // Nap couch
   furniture(scene, 6.1, 5.9, 8.9, 6.9, 0.45, '#7a3b3b', 'flammable');
   box(scene, 2.8, 0.5, 0.25, '#6a3333', 7.5, 0.75, 6.85);

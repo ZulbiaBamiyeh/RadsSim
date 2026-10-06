@@ -129,15 +129,18 @@ At the PACS workstation:
   - **Flying metal mid-scan** ruins the scan and it restarts.
 - **New studies to report:** chest X-rays (pneumothorax, consolidation, free gas under the diaphragm, pleural effusion) and MRI brains, stroke protocol, on T2-style contrast (acute infarct).
 
-## Car park, cars, golf and the RiskBay shop
+## Car park, cars, golf and the reading-room PC
 
 - **Car park** south past the ambulance bay, floodlit, with bay lines and a driveway ramp up to the bay.
-- **Cars** (8 of them, with owners like Dr Harrow's SUV and the DMS's Range Rover):
-  - **Smash a window** with a kick (F), a thrown object, a golf ball or the cricket bat — the alarm wails.
-  - **Break in and drive** with **E**: WASD to steer, Shift to floor it, E to get out. You can drive up the ramp, through the ambulance doors and straight into the ED, running people over (cartoonishly) and shoving furniture.
+- **Cars** (8 of them: hatchbacks, a sedan, SUVs, Security's ute and an ambulance with a working lightbar; owners include Dr Harrow and the DMS). Each has wheel arches, alloys, glass, plates and a dashboard you can see from the driver's seat:
+  - **Smash the windows** with a kick (F), a thrown object, a golf ball or the cricket bat. The glass crazes and the alarm wails.
+  - **Break in and drive** with **E** (you put the driver's window through): WASD to steer, Shift to floor it, E to get out. You can drive up the ramp, through the ambulance doors and straight into the ED, running people over (cartoonishly) and shoving furniture.
   - Ramming other parked cars sets their alarms off too.
-- **Golf** (order the set from RiskBay): hold the 7-iron and **RMB** to tee up and whack a ball in your look direction. Do it off the roof.
-- **RiskBay shop** — a second tab on the RiskMann computer. Order a golf set, cricket bat, air horn, traffic cones, a pallet of O2 cylinders, a kebab, a reconditioned extinguisher (jetpack), a spare defib, a pre-filled mop bucket, or "definitely legitimate" car keys. It's charged to the departmental cost centre (not your money); overspend gets a RiskMann filed about you. Orders are dropped by courier drone at the ambulance bay.
+- **Golf** (order the set on Bidly): hold the 7-iron and **RMB** to tee up and whack a ball in your look direction. Do it off the roof.
+- **The side computer** in the reading room is now a full (tired) hospital desktop with icons:
+  - **RiskMann**: incident reports only.
+  - **Bidly**: a parody online marketplace with sellers, ratings and Buy It Now. It sells a golf set, cricket bat, air horn, traffic cones, O2 cylinders, a kebab, an extinguisher (jetpack), a defib, a mop bucket and some very suspicious car keys. You pay with a corporate card someone left in the drawer ($2,500 limit; it gets declined after that). Orders arrive by courier drone at the ambulance bay.
+  - **Files**: a half-written case report co-written with an AI chatbot (the prompts and "As an AI language model…" are still in it, highlighted), the rota (you're on every night), `passwords.txt`, a resignation letter marked DO NOT SEND, registrar teaching slides, a cat photo, a note from IT and a Recycle Bin.
 - **CT noise** during scanning has been removed; only the MRI still clatters.
 
 ## Code map
@@ -159,6 +162,8 @@ At the PACS workstation:
 | `src/audio.js` | Synthesised sound effects (no audio files) |
 | `src/scanning.js` | Scan queues, radiographers and patients moving through CT, MRI and X-ray |
 | `src/riskman.js` | RiskMann incident-reporting app |
+| `src/desktop.js` | Reading-room PC desktop: icons, file viewer and the joke documents |
+| `src/store.js` | Bidly marketplace app and order delivery |
 | `src/argue.js` | The registrar argument when you bounce a request |
 | `src/touch.js` | Phone/tablet controls: move stick, drag-to-look, action buttons |
 
